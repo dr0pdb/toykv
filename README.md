@@ -1,2 +1,2 @@
 # graphchaindb
-Build your own graph database!
+An experimental graph database written for tutorial purposes!

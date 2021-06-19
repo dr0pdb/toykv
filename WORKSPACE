@@ -1,4 +1,5 @@
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 git_repository(
     name = "com_google_googletest",
@@ -12,10 +13,22 @@ git_repository(
     tag = "v0.5.0",
 )
 
-git_repository(
+# ABSL cpp library lts_2021_03_24
+http_archive(
     name = "com_google_absl",
-    remote = "https://github.com/abseil/abseil-cpp.git",
-    tag = "20200225.2",
+    patch_args = [
+        "-p1",
+    ],
+    strip_prefix = "abseil-cpp-20210324.2",
+    urls = [
+        "https://github.com/abseil/abseil-cpp/archive/refs/tags/20210324.2.tar.gz",
+    ],
+)
+
+http_archive(
+    name = "rules_cc",
+    strip_prefix = "rules_cc-262ebec3c2296296526740db4aefce68c80de7fa",
+    urls = ["https://github.com/bazelbuild/rules_cc/archive/262ebec3c2296296526740db4aefce68c80de7fa.zip"],
 )
 
 git_repository(
