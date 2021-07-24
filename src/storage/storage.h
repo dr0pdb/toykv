@@ -28,9 +28,12 @@ class Storage {
     static absl::Status Load(const Options& options, absl::string_view db_path,
                              Storage** storage);
 
+    // Sets the given value corresponding to the given key.
+    // overwrites the existing value if it exists.
     virtual absl::Status Set(const WriteOptions& options, absl::string_view key,
                              absl::string_view value);
 
+    // Gets the latest value corresponding to the given key.
     virtual absl::StatusOr<std::string> Get(const ReadOptions& options,
                                             absl::string_view key);
 };

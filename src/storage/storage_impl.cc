@@ -4,7 +4,10 @@ namespace graphchaindb {
 
 StorageImpl::StorageImpl(const Options& options, absl::string_view db_name) {}
 
-StorageImpl::~StorageImpl() {}
+StorageImpl::~StorageImpl() {
+    delete disk_manager_;
+    delete recovery_manager_;
+}
 
 absl::Status StorageImpl::Set(const WriteOptions& options,
                               absl::string_view key, absl::string_view value) {

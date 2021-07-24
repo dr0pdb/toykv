@@ -7,9 +7,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//src/common:common_library",
-        "//src/storage/buffer:storage_buffer",
-        "//src/storage/disk:storage_disk",
-        "//src/storage/index:storage_index",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",

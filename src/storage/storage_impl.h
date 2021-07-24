@@ -10,8 +10,10 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
-#include "disk/disk_manager.h"
+#include "buffer_manager.h"
+#include "disk_manager.h"
 #include "option.h"
+#include "recovery_manager.h"
 #include "storage.h"
 
 namespace graphchaindb {
@@ -33,7 +35,9 @@ class StorageImpl : public Storage {
                                     absl::string_view key) override;
 
    private:
+    BufferManager* buffer_manager;
     DiskManager* disk_manager_;
+    RecoveryManager* recovery_manager_;
     absl::Mutex mutex_;
 };
 
