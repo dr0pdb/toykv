@@ -1,20 +1,20 @@
 #include "storage.h"
 
+#include "storage_impl.h"
+
 namespace graphchaindb {
 
-absl::Status Storage::Load(const Options& options, absl::string_view db_path,
-                           Storage** storage) {
-    return absl::OkStatus();
-}
+absl::StatusOr<Storage*> Storage::Load(const Options& options,
+                                       absl::string_view db_path) {
+    StorageImpl* impl = new StorageImpl(options, db_path);
 
-absl::Status Storage::Set(const WriteOptions& options, absl::string_view key,
-                          absl::string_view value) {
-    return absl::OkStatus();
-}
+    // recover and handle create_if_not_exists and error_if_exists
+    absl::Status s = impl->Recover(options);
+    if (s.ok()) {
+        return impl;
+    }
 
-absl::StatusOr<std::string> Storage::Get(const ReadOptions& options,
-                                         absl::string_view key) {
-    return absl::OkStatus();
+    return s;
 }
 
 Storage::~Storage() = default;

@@ -7,7 +7,7 @@ namespace graphchaindb {
 
 class BufferManager {
    public:
-    BufferManager(DiskManager* disk_manager);
+    explicit BufferManager(DiskManager* disk_manager);
 
     BufferManager(const BufferManager&) = delete;
     BufferManager& operator=(const BufferManager&) = delete;

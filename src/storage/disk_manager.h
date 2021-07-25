@@ -12,7 +12,7 @@ namespace graphchaindb {
 // todo: Thread safety?
 class DiskManager {
    public:
-    DiskManager(absl::string_view db_path);
+    explicit DiskManager(absl::string_view db_path);
 
     DiskManager(const DiskManager&) = delete;
     DiskManager& operator=(const DiskManager&) = delete;

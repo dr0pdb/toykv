@@ -1,3 +1,7 @@
 #include "recovery_manager.h"
 
-namespace graphchaindb {}  // namespace graphchaindb
+namespace graphchaindb {
+
+RecoveryManager::RecoveryManager(LogManager* log_manager) {}
+
+}  // namespace graphchaindb

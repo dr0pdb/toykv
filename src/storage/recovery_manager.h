@@ -1,6 +1,7 @@
 #ifndef STORAGE_RECOVERY_MANAGER_H
 #define STORAGE_RECOVERY_MANAGER_H
 
+#include "log_manager.h"
 #include "src/common/config.h"
 
 namespace graphchaindb {
@@ -9,7 +10,7 @@ namespace graphchaindb {
 // todo: Thread safety?
 class RecoveryManager {
    public:
-    RecoveryManager();
+    explicit RecoveryManager(LogManager* log_manager);
 
     RecoveryManager(const RecoveryManager&) = delete;
     RecoveryManager& operator=(const RecoveryManager&) = delete;
@@ -17,6 +18,7 @@ class RecoveryManager {
     ~RecoveryManager() = default;
 
    private:
+    LogManager* log_manager_;
 };
 
 }  // namespace graphchaindb

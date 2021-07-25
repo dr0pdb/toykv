@@ -24,18 +24,17 @@ class Storage {
     virtual ~Storage();
 
     // Loads the storage with the given name.
-    // Stores the pointer to the created storage in the "storage" variable
-    static absl::Status Load(const Options& options, absl::string_view db_path,
-                             Storage** storage);
+    static absl::StatusOr<Storage*> Load(const Options& options,
+                                         absl::string_view db_path);
 
     // Sets the given value corresponding to the given key.
     // overwrites the existing value if it exists.
     virtual absl::Status Set(const WriteOptions& options, absl::string_view key,
-                             absl::string_view value);
+                             absl::string_view value) = 0;
 
     // Gets the latest value corresponding to the given key.
     virtual absl::StatusOr<std::string> Get(const ReadOptions& options,
-                                            absl::string_view key);
+                                            absl::string_view key) = 0;
 };
 
 }  // namespace graphchaindb
