@@ -2,6 +2,7 @@
 
 namespace graphchaindb {
 
-RecoveryManager::RecoveryManager(LogManager* log_manager) {}
+RecoveryManager::RecoveryManager(LogManager* log_manager)
+    : log_manager_{log_manager} {}
 
 }  // namespace graphchaindb

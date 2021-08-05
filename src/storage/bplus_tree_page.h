@@ -1,11 +1,10 @@
 #ifndef STORAGE_BPLUS_TREE_PAGE_H
 #define STORAGE_BPLUS_TREE_PAGE_H
 
+#include "page.h"
 #include "src/common/config.h"
 
 namespace graphchaindb {
-
-enum BplusTreePageType { INVALID, INTERNAL, LEAF };
 
 // A common page interface for the B+ tree.
 //
@@ -27,7 +26,7 @@ class BplusTreePage {
     ~BplusTreePage() = default;
 
    private:
-    BplusTreePageType page_type_;
+    PageType page_type_;
     page_id_t page_id_;
     page_id_t parent_page_id_;
 };
