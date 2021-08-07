@@ -3,6 +3,7 @@
 
 #include "page.h"
 #include "src/common/config.h"
+#include "string_container.h"
 
 namespace graphchaindb {
 
@@ -24,6 +25,9 @@ class BplusTreePage {
     BplusTreePage& operator=(const BplusTreePage&) = delete;
 
     ~BplusTreePage() = default;
+
+    // init the page
+    virtual void InitPage(page_id_t page_id);
 
    private:
     PageType page_type_;

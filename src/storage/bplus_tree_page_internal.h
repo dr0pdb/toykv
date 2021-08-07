@@ -9,11 +9,18 @@ namespace graphchaindb {
 // TODO: update this offset once the header format is decided.
 #define BPLUS_TREE_INTERNAL_PAGE_DATA_OFFSET 24
 
+// A container for holding string key and page id pair.
+// Both the key and page id are fixed size.
+struct BplusTreeKeyPagePair {
+    StringContainer key;
+    page_id_t page;
+};
+
 // The internal page of a B+ tree which stores the key and child page ids.
 //
 // Format (size in bytes):
 // ------------------------------------------------------------------
-// | Headers (?) | Key 1 | PageId 1(4) | Key 2  | PageId 2(4) | ... |
+// | Headers (12) | Key 1 | PageId 1(4) | Key 2  | PageId 2(4) | ... |
 // ------------------------------------------------------------------
 //
 // Header
@@ -30,7 +37,12 @@ class BplusTreeInternalPage : public BplusTreePage {
 
     virtual ~BplusTreeInternalPage();
 
+    // init the page
+    virtual void InitPage(page_id_t page_id);
+
    private:
+    BplusTreeKeyPagePair
+        data_[0];  // array of key and corresponding child page ids
 };
 
 }  // namespace graphchaindb

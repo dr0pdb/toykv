@@ -3,6 +3,7 @@
 
 #include "absl/base/thread_annotations.h"
 #include "absl/synchronization/mutex.h"
+#include "key_comparator.h"
 #include "src/common/config.h"
 
 namespace graphchaindb {
@@ -11,21 +12,21 @@ namespace graphchaindb {
 //
 // Both the keys and values are variable length strings.
 // It is thread safe
-template <typename Comparator>
 class BplusTree {
    public:
-    BplusTree() = default;
+    BplusTree();
+    BplusTree(KeyComparator* comp);
 
     BplusTree(const BplusTree&) = delete;
     BplusTree& operator=(const BplusTree&) = delete;
 
-    virtual ~BplusTree();
+    ~BplusTree();
 
    private:
-    Comparator comp_;
+    KeyComparator* comp_;
 
     absl::Mutex mu_;  // protects root_page_id_, ...
-    page_id_t root_page_id_ GUARDED_BY(mu_);
+    page_id_t root_page_id_ GUARDED_BY(mu_) = INVALID_PAGE_ID;
 };
 
 }  // namespace graphchaindb

@@ -9,11 +9,18 @@ namespace graphchaindb {
 // TODO: update this offset once the header format is decided.
 #define BPLUS_TREE_LEAF_PAGE_DATA_OFFSET 24
 
+// A container for holding string key and value pairs.
+// Both the key and value are fixed sized.
+struct BplusTreeKeyValuePair {
+    StringContainer key;
+    StringContainer value;
+};
+
 // The leaf page of a B+ tree which stores the actual key value pair.
 //
 // Format (size in bytes):
 // ---------------------------------------------------------
-// | Headers (?) | Key 1 + Value 1 | Key 2 + Value 2 | ... |
+// | Headers (16) | Key 1 + Value 1 | Key 2 + Value 2 | ... |
 // ---------------------------------------------------------
 //
 // Header
@@ -31,10 +38,14 @@ class BplusTreeLeafPage : public BplusTreePage {
     virtual ~BplusTreeLeafPage();
 
     // init the leaf page
-    void InitPage(page_id_t page_id);
+    void InitPage(page_id_t page_id, page_id_t next_page_id = INVALID_PAGE_ID);
+
+    // set the next page id
+    void SetNextPage(page_id_t next_page_id);
 
    private:
     page_id_t next_page_id_;
+    BplusTreeKeyValuePair data_[0];  // array of key value pairs
 };
 
 }  // namespace graphchaindb

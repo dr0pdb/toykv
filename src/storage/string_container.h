@@ -1,6 +1,7 @@
 #ifndef STORAGE_STRING_KEY_H
 #define STORAGE_STRING_KEY_H
 
+#include "absl/strings/string_view.h"
 #include "src/common/config.h"
 
 namespace graphchaindb {
@@ -42,6 +43,11 @@ class StringContainer {
     inline char* GetStringData() {
         // TODO: handle overflow page structure
         return reinterpret_cast<char*>(data_ + 4);
+    }
+
+    // Set the string data stored in the container
+    inline void SetStringData(absl::string_view value) {
+        // TODO
     }
 
    private:
