@@ -5,11 +5,9 @@
 #include <cstdio>
 #include <string>
 
-#include "absl/base/thread_annotations.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
-#include "absl/synchronization/mutex.h"
 #include "bplus_tree_index.h"
 #include "buffer_manager.h"
 #include "disk_manager.h"
@@ -30,11 +28,20 @@ class StorageImpl : public Storage {
 
     ~StorageImpl() override;
 
+    // Sets the given value corresponding to the given key.
+    // overwrites the existing value if it exists.
     absl::Status Set(const WriteOptions& options, absl::string_view key,
                      absl::string_view value) override;
 
+    // Gets the latest value corresponding to the given key.
     absl::StatusOr<std::string> Get(const ReadOptions& options,
                                     absl::string_view key) override;
+
+    // Delete the value corresponding to the given key.
+    //
+    // Returns NotFoundError if the existing value doesn't exist.
+    absl::Status Delete(const WriteOptions& options,
+                        absl::string_view key) override;
 
     // Run recovery procedure.
     // Also handles create_if_not_exists and error_if_exists from options.
@@ -46,7 +53,6 @@ class StorageImpl : public Storage {
     BufferManager* buffer_manager_;
     RecoveryManager* recovery_manager_;
     BplusTreeIndex* index_;
-    absl::Mutex mutex_;  // TODO: do we need it?
 };
 
 }  // namespace graphchaindb

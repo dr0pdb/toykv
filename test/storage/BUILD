@@ -7,5 +7,6 @@ cc_test(
     deps = [
         "//src/storage:storage_library",
         "@com_google_googletest//:gtest_main",
+        "@glog",
     ],
 )

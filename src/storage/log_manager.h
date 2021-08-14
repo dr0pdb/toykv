@@ -3,6 +3,7 @@
 
 #include <fstream>
 
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "disk_manager.h"
 #include "src/common/config.h"
@@ -19,6 +20,9 @@ class LogManager {
     LogManager& operator=(const LogManager&) = delete;
 
     ~LogManager() = default;
+
+    // Write a log entry for the key value pair
+    absl::Status WriteLogEntry(absl::string_view key, absl::string_view value);
 
    private:
     DiskManager* disk_manager_;

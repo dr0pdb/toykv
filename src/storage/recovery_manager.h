@@ -1,6 +1,7 @@
 #ifndef STORAGE_RECOVERY_MANAGER_H
 #define STORAGE_RECOVERY_MANAGER_H
 
+#include "absl/status/status.h"
 #include "log_manager.h"
 #include "src/common/config.h"
 
@@ -16,6 +17,9 @@ class RecoveryManager {
     RecoveryManager& operator=(const RecoveryManager&) = delete;
 
     ~RecoveryManager() = default;
+
+    // Run recovery procedure.
+    absl::Status Recover();
 
    private:
     LogManager* log_manager_;

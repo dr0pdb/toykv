@@ -38,7 +38,14 @@ class BplusTreeLeafPage : public BplusTreePage {
     virtual ~BplusTreeLeafPage();
 
     // init the leaf page
-    void InitPage(page_id_t page_id, page_id_t next_page_id = INVALID_PAGE_ID);
+    //
+    // MUST be called after allocating the page and before doing anything useful
+    void InitPage(page_id_t page_id, PageType page_type,
+                  page_id_t parent_page_id,
+                  page_id_t next_page_id = INVALID_PAGE_ID) {
+        BplusTreePage::InitPage(page_id, page_type, parent_page_id);
+        next_page_id_ = next_page_id;
+    }
 
     // set the next page id
     void SetNextPage(page_id_t next_page_id);

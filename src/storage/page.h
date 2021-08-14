@@ -67,7 +67,6 @@ class Page {
     inline void ZeroOut() { memset(data_, 0, PAGE_SIZE); }
 
     page_id_t page_id_;
-
     absl::Mutex mu_;
     int pin_count_ = 0;
     bool is_page_dirty_ = false;

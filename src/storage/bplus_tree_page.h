@@ -13,9 +13,9 @@ namespace graphchaindb {
 // B+ tree page types have.
 //
 // Format (size in bytes)
-// -------------------------------------------------------------------
+// -------------------------------------------------
 // | PageType (4) | PageId (4) | Parent PageId (4) |
-// -------------------------------------------------------------------
+// -------------------------------------------------
 //
 class BplusTreePage {
    public:
@@ -26,8 +26,15 @@ class BplusTreePage {
 
     ~BplusTreePage() = default;
 
-    // init the page
-    virtual void InitPage(page_id_t page_id);
+    // init the page.
+    //
+    // MUST be called after allocating the page and before doing anything useful
+    void InitPage(page_id_t page_id, PageType page_type,
+                  page_id_t parent_page_id) {
+        page_id_ = page_id;
+        page_type_ = page_type;
+        parent_page_id_ = parent_page_id;
+    }
 
    private:
     PageType page_type_;

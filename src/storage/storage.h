@@ -32,6 +32,12 @@ class Storage {
     virtual absl::Status Set(const WriteOptions& options, absl::string_view key,
                              absl::string_view value) = 0;
 
+    // Delete the value corresponding to the given key.
+    //
+    // Returns NotFoundError if the existing value doesn't exist.
+    virtual absl::Status Delete(const WriteOptions& options,
+                                absl::string_view key) = 0;
+
     // Gets the latest value corresponding to the given key.
     virtual absl::StatusOr<std::string> Get(const ReadOptions& options,
                                             absl::string_view key) = 0;

@@ -14,7 +14,7 @@ class DefaultKeyComparator : public KeyComparator {
     DefaultKeyComparator(const DefaultKeyComparator&) = delete;
     DefaultKeyComparator& operator=(const DefaultKeyComparator&) = delete;
 
-    ~DefaultKeyComparator() = default;
+    ~DefaultKeyComparator() override = default;
 
     // Compare operation compares the two strings
     //

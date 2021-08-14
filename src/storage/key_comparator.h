@@ -13,7 +13,7 @@ class KeyComparator {
     KeyComparator(const KeyComparator&) = delete;
     KeyComparator& operator=(const KeyComparator&) = delete;
 
-    ~KeyComparator() = default;
+    virtual ~KeyComparator() = default;
 
     // Compare operation compares the two strings
     //

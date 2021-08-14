@@ -38,7 +38,12 @@ class BplusTreeInternalPage : public BplusTreePage {
     virtual ~BplusTreeInternalPage();
 
     // init the page
-    virtual void InitPage(page_id_t page_id);
+    //
+    // MUST be called after allocating the page and before doing anything useful
+    void InitPage(page_id_t page_id, PageType page_type,
+                  page_id_t parent_page_id) {
+        BplusTreePage::InitPage(page_id, page_type, parent_page_id);
+    }
 
    private:
     BplusTreeKeyPagePair
