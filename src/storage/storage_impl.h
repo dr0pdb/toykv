@@ -19,6 +19,8 @@
 namespace graphchaindb {
 
 // An implementation of the Storage interface
+//
+// TODO: concurrency?
 class StorageImpl : public Storage {
    public:
     StorageImpl(const Options& options, absl::string_view db_path);

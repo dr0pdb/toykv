@@ -11,7 +11,13 @@ static constexpr int STRING_CONTAINER_SIZE =
 static constexpr int PAGE_BUFFER_SIZE = 10;  // size of the buffer pool cache
 static constexpr int INVALID_PAGE_ID = -1;   // indicates an invalid page
 
+static constexpr int VERBOSE_CHEAP =
+    1;  // verbose logging which includes should be cheap
+static constexpr int VERBOSE_EXPENSIVE =
+    2;  // verbose logging which might be expensive such as strings
+
 using page_id_t = int32_t;  // page id
+using ln_t = uint64_t;      // log number
 
 }  // namespace graphchaindb
 

@@ -1,5 +1,9 @@
 #include "storage_impl.h"
 
+#include <glog/logging.h>
+
+#include "src/storage/log_entry.h"
+
 namespace graphchaindb {
 
 StorageImpl::StorageImpl(const Options& options, absl::string_view db_path)
@@ -19,11 +23,27 @@ StorageImpl::~StorageImpl() {
 
 absl::Status StorageImpl::Set(const WriteOptions& options,
                               absl::string_view key, absl::string_view value) {
-    // prepare and write log
+    LOG(INFO) << "StorageImpl::Set: Start with key: " << key
+              << " value: " << value;
+
+    absl::StatusOr<std::unique_ptr<LogEntry>> sOrLogEntry =
+        log_manager_->PrepareLogEntry(key, value);
+    if (!sOrLogEntry.ok() || *sOrLogEntry == nullptr) {
+        LOG(ERROR) << "StorageImpl::Set: unable to prepare log entry for set "
+                      "operation";
+        return sOrLogEntry.status();
+    }
+
+    absl::Status s = log_manager_->WriteLogEntry(*sOrLogEntry);
+    if (!s.ok()) {
+        LOG(ERROR)
+            << "StorageImpl::Set: unable to write log entry for set operation";
+        return s;
+    }
 
     // update in the index
 
-    return absl::OkStatus();
+    return s;
 }
 
 absl::StatusOr<std::string> StorageImpl::Get(const ReadOptions& options,
@@ -39,10 +59,12 @@ absl::Status StorageImpl::Delete(const WriteOptions& options,
 }
 
 absl::Status StorageImpl::Recover(const Options& options) {
-    absl::Status s = disk_manager_->LoadDB();
+    LOG(INFO) << "StorageImpl::Recover: Start";
 
+    absl::Status s = disk_manager_->LoadDB();
     if (s.ok()) {
         if (options.error_if_exists) {
+            LOG(ERROR) << "StorageImpl::Recover: database files already exist";
             s = absl::AlreadyExistsError("Database files already exist");
         } else {
             // do the actual recovery
@@ -53,10 +75,14 @@ absl::Status StorageImpl::Recover(const Options& options) {
 
             // TODO: setup necessary first time info.
         } else {
+            LOG(ERROR) << "StorageImpl::Recover: database files not found";
             s = absl::NotFoundError("Database files not found");
         }
     }
 
+    LOG(INFO) << "StorageImpl::Recover: Done creating/loading DB files";
+
+    s = log_manager_->Init();
     return s;
 }
 

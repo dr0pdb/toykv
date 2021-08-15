@@ -12,11 +12,11 @@ namespace graphchaindb {
 // Indicates the type of page.
 // This is stored in the header of each page.
 enum PageType {
-    INVALID,
-    BPLUS_INTERNAL,
-    BPLUS_LEAF,
-    BPLUS_OVERFLOW,
-    STRING_OVERFLOW
+    PAGE_TYPE_INVALID,
+    PAGE_TYPE_BPLUS_INTERNAL,
+    PAGE_TYPE_BPLUS_LEAF,
+    PAGE_TYPE_BPLUS_OVERFLOW,
+    PAGE_TYPE_STRING_OVERFLOW
 };
 
 // Page represent a single unit of storage in the database.
