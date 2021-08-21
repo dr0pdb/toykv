@@ -1,2 +1,2 @@
-# graphchaindb
-An experimental graph database written for learning purposes!
+# toykv
+An experimental embedded key value database written for learning purposes!
