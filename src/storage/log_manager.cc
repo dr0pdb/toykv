@@ -2,6 +2,8 @@
 
 #include <glog/logging.h>
 
+#include <memory>
+
 #include "src/common/config.h"
 
 namespace graphchaindb {
@@ -20,21 +22,22 @@ absl::Status LogManager::Init() {
 absl::StatusOr<std::unique_ptr<LogEntry>> LogManager::PrepareLogEntry(
     absl::string_view key, absl::optional<absl::string_view> value) {
     LOG(INFO) << "LogManager::PrepareLogEntry: Start";
+    VLOG(VERBOSE_EXPENSIVE) << "key: " << key;
 
-    // setup headers
+    if (value.has_value()) {
+        VLOG(VERBOSE_EXPENSIVE) << "value: " << value.value();
+        return std::make_unique<LogEntry>(next_ln_++, key, value.value());
+    }
 
-    // serialize key to binary
-
-    // serialize value to binary
-
-    return absl::OkStatus();
+    return std::make_unique<LogEntry>(next_ln_++, key);
 }
 
 absl::Status LogManager::WriteLogEntry(std::unique_ptr<LogEntry>& log_entry) {
     LOG(INFO) << "LogManager::WriteLogEntry: Start";
-    // VLOG(VERBOSE_EXPENSIVE) << "key: " << key << " value: " << value;
 
-    return absl::OkStatus();
+    char* data = new char[log_entry->Size()];
+    log_entry->SerializeTo(data);
+    return disk_manager_->WriteLogEntry(data, log_entry->Size());
 }
 
 }  // namespace graphchaindb

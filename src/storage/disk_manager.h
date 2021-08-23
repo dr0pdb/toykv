@@ -31,6 +31,9 @@ class DiskManager {
     // Create the db and log files on disk.
     absl::Status CreateDBFilesAndLoadDB();
 
+    // Write the given log entry into the log file
+    absl::Status WriteLogEntry(char* log_entry, int size);
+
    private:
     std::string db_path_;
     std::fstream db_file_;

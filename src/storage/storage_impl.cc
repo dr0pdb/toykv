@@ -46,16 +46,37 @@ absl::Status StorageImpl::Set(const WriteOptions& options,
     return s;
 }
 
+absl::Status StorageImpl::Delete(const WriteOptions& options,
+                                 absl::string_view key) {
+    LOG(INFO) << "StorageImpl::Delete: Start with key: " << key;
+
+    absl::StatusOr<std::unique_ptr<LogEntry>> sOrLogEntry =
+        log_manager_->PrepareLogEntry(key, absl::nullopt);
+    if (!sOrLogEntry.ok() || *sOrLogEntry == nullptr) {
+        LOG(ERROR)
+            << "StorageImpl::Delete: unable to prepare log entry for delete "
+               "operation";
+        return sOrLogEntry.status();
+    }
+
+    absl::Status s = log_manager_->WriteLogEntry(*sOrLogEntry);
+    if (!s.ok()) {
+        LOG(ERROR)
+            << "StorageImpl::Delete: unable to write log entry for delete "
+               "operation";
+        return s;
+    }
+
+    // update in the index
+
+    return s;
+}
+
 absl::StatusOr<std::string> StorageImpl::Get(const ReadOptions& options,
                                              absl::string_view key) {
     // get from index
 
     return "hello";
-}
-
-absl::Status StorageImpl::Delete(const WriteOptions& options,
-                                 absl::string_view key) {
-    return absl::OkStatus();
 }
 
 absl::Status StorageImpl::Recover(const Options& options) {

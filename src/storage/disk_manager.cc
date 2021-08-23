@@ -53,4 +53,18 @@ absl::Status DiskManager::CreateDBFilesAndLoadDB() {
     return LoadDB();
 }
 
+absl::Status DiskManager::WriteLogEntry(char* log_entry, int size) {
+    LOG(INFO) << "DiskManager::WriteLogEntry: Start";
+
+    log_file_.write(log_entry, size);
+    if (log_file_.bad()) {
+        LOG(ERROR) << "DiskManager::WriteLogEntry: error while "
+                      "adding log entry";
+        return absl::InternalError("Unable to add log entry in the log file.");
+    }
+    log_file_.flush();
+
+    return absl::OkStatus();
+}
+
 }  // namespace graphchaindb
