@@ -6,6 +6,7 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
+#include "root_page.h"
 #include "src/common/config.h"
 
 namespace graphchaindb {
@@ -34,11 +35,24 @@ class DiskManager {
     // Write the given log entry into the log file
     absl::Status WriteLogEntry(char* log_entry, int size);
 
+    // Allocate a new page by incrementing the next page id
+    page_id_t AllocateNewPage();
+
+    // Store the contents of the given page id into the destination buffer
+    absl::Status ReadPage(page_id_t page_id, char* destination);
+
+    // Write the contents of the given data buffer in the given page
+    absl::Status WritePage(page_id_t page_id, char* data, bool flush = false);
+
    private:
     std::string db_path_;
     std::fstream db_file_;
     std::fstream log_file_;
+    int64_t next_page_id_{INVALID_PAGE_ID};
+    std::unique_ptr<RootPage> root_page_{nullptr};
 };
+
+static constexpr absl::string_view TEST_DB_PATH = "/home/sauravtiwary/hello";
 
 }  // namespace graphchaindb
 

@@ -23,6 +23,7 @@ absl::StatusOr<std::unique_ptr<LogEntry>> LogManager::PrepareLogEntry(
     absl::string_view key, absl::optional<absl::string_view> value) {
     LOG(INFO) << "LogManager::PrepareLogEntry: Start";
     VLOG(VERBOSE_EXPENSIVE) << "key: " << key;
+    CHECK_NE(next_ln_, INVALID_LOG_NUMBER);
 
     if (value.has_value()) {
         VLOG(VERBOSE_EXPENSIVE) << "value: " << value.value();
@@ -34,6 +35,7 @@ absl::StatusOr<std::unique_ptr<LogEntry>> LogManager::PrepareLogEntry(
 
 absl::Status LogManager::WriteLogEntry(std::unique_ptr<LogEntry>& log_entry) {
     LOG(INFO) << "LogManager::WriteLogEntry: Start";
+    CHECK_NE(next_ln_, INVALID_LOG_NUMBER);
 
     char* data = new char[log_entry->Size()];
     log_entry->SerializeTo(data);

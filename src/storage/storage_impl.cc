@@ -91,6 +91,7 @@ absl::Status StorageImpl::Recover(const Options& options) {
             // do the actual recovery
         }
     } else {
+        // TODO: consider checking if the error is not found error
         if (options.create_if_not_exists) {
             s = disk_manager_->CreateDBFilesAndLoadDB();
 
@@ -101,7 +102,8 @@ absl::Status StorageImpl::Recover(const Options& options) {
         }
     }
 
-    LOG(INFO) << "StorageImpl::Recover: Done creating/loading DB files";
+    LOG(INFO) << "StorageImpl::Recover: Done creating/loading DB files. "
+                 "Reading log statements now";
 
     s = log_manager_->Init();
     return s;

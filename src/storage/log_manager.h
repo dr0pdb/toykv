@@ -41,7 +41,7 @@ class LogManager {
 
    private:
     DiskManager* disk_manager_;
-    ln_t next_ln_;
+    ln_t next_ln_{INVALID_LOG_NUMBER};
 };
 
 }  // namespace graphchaindb

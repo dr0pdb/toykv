@@ -24,10 +24,6 @@ enum LogEntryType { LOG_ENTRY_INVALID, LOG_ENTRY_SET, LOG_ENTRY_DELETE };
 // | Entry type (4) | LogEntryId (8) | size (4) |
 // ----------------------------------------------
 //
-// Data format (size in bytes - starts after Header):
-//
-//
-//
 class LogEntry {
    public:
     LogEntry(ln_t log_number, absl::string_view key)
@@ -74,7 +70,9 @@ class LogEntry {
     absl::optional<absl::string_view> GetValue() { return value_; }
 
     // Serialize the contents and store in the given data pointer
-    void SerializeTo(char* data) {}
+    void SerializeTo(char* data) {
+        // TODO: copy over the contents
+    }
 
    private:
     void calculateSize() {

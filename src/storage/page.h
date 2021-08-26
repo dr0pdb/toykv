@@ -13,6 +13,7 @@ namespace graphchaindb {
 // This is stored in the header of each page.
 enum PageType {
     PAGE_TYPE_INVALID,
+    PAGE_TYPE_ROOT,
     PAGE_TYPE_BPLUS_INTERNAL,
     PAGE_TYPE_BPLUS_LEAF,
     PAGE_TYPE_BPLUS_OVERFLOW,
