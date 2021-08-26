@@ -52,7 +52,7 @@ class DiskManager {
     std::unique_ptr<RootPage> root_page_{nullptr};
 };
 
-static constexpr absl::string_view TEST_DB_PATH = "/home/sauravtiwary/hello";
+static constexpr absl::string_view TEST_DB_PATH = "/tmp/testdb";
 
 }  // namespace graphchaindb
 
