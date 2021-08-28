@@ -47,8 +47,8 @@ absl::Status DiskManager::LoadDB() {
 absl::Status DiskManager::CreateDBFilesAndLoadDB() {
     LOG(INFO) << "DiskManager::CreateDBFilesAndLoadDB: Start at " << db_path_;
 
-    db_file_.open(db_path_ + ".db",
-                  std::ios::in | std::ios::binary | std::ios::out);
+    db_file_.open(db_path_ + ".db", std::ios::in | std::ios::binary |
+                                        std::ios::out | std::ios::trunc);
 
     log_file_.open(db_path_ + ".log", std::ios::in | std::ios::binary |
                                           std::ios::out | std::ios::trunc);
@@ -88,6 +88,13 @@ absl::Status DiskManager::WriteLogEntry(char* log_entry, int size) {
         return absl::InternalError("Unable to add log entry in the log file.");
     }
     log_file_.flush();
+
+    return absl::OkStatus();
+}
+
+absl::StatusOr<std::unique_ptr<char>> DiskManager::ReadLogEntry(int offset) {
+    LOG(INFO) << "DiskManager::ReadLogEntry: Start at offset: " << offset;
+    CHECK_NOTNULL(root_page_);
 
     return absl::OkStatus();
 }

@@ -5,6 +5,7 @@
 #include <string>
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "root_page.h"
 #include "src/common/config.h"
@@ -35,6 +36,9 @@ class DiskManager {
     // Write the given log entry into the log file
     absl::Status WriteLogEntry(char* log_entry, int size);
 
+    // Read the log entry at the given offset
+    absl::StatusOr<std::unique_ptr<char>> ReadLogEntry(int offset);
+
     // Allocate a new page by incrementing the next page id
     page_id_t AllocateNewPage();
 
@@ -52,6 +56,7 @@ class DiskManager {
     std::unique_ptr<RootPage> root_page_{nullptr};
 };
 
+// Exposed for testing
 static constexpr absl::string_view TEST_DB_PATH = "/tmp/testdb";
 
 }  // namespace graphchaindb
