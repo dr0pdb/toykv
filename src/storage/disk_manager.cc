@@ -4,10 +4,17 @@
 
 #include <iostream>
 
+#include "src/storage/log_entry.h"
+
 namespace graphchaindb {
 
 DiskManager::DiskManager(absl::string_view db_path)
     : db_path_{std::string{db_path.data(), db_path.size()}} {}
+
+DiskManager::~DiskManager() {
+    db_file_.close();
+    log_file_.close();
+}
 
 absl::Status DiskManager::LoadDB() {
     LOG(INFO) << "DiskManager::LoadDB: Start at " << db_path_;
@@ -92,11 +99,48 @@ absl::Status DiskManager::WriteLogEntry(char* log_entry, int size) {
     return absl::OkStatus();
 }
 
-absl::StatusOr<std::unique_ptr<char>> DiskManager::ReadLogEntry(int offset) {
+absl::StatusOr<char*> DiskManager::ReadLogEntry(int offset) {
     LOG(INFO) << "DiskManager::ReadLogEntry: Start at offset: " << offset;
     CHECK_NOTNULL(root_page_);
 
-    return absl::OkStatus();
+    log_file_.seekp(offset, std::ios::beg);
+    if (log_file_.bad()) {
+        LOG(ERROR) << "DiskManager::ReadLogEntry: error while "
+                      "seeking log file to the offset";
+        return absl::InternalError(
+            "error in seeking log file to the given offset");
+    }
+
+    char* header = new char[LogEntry::HEADER_SIZE];
+    log_file_.read(header, LogEntry::HEADER_SIZE);
+    if (log_file_.bad()) {
+        LOG(ERROR) << "DiskManager::ReadLogEntry: error while "
+                      "reading log entry header";
+        return absl::InternalError(
+            "error in seeking log file to the given offset");
+    }
+
+    uint32_t total_size =
+        *reinterpret_cast<uint32_t*>(header + LogEntry::SIZE_OFFSET);
+
+    log_file_.seekp(offset, std::ios::beg);
+    if (log_file_.bad()) {
+        LOG(ERROR) << "DiskManager::ReadLogEntry: error while "
+                      "seeking log file to the offset after reading header";
+        return absl::InternalError(
+            "error in seeking log file to the given offset after reading "
+            "header");
+    }
+
+    char* log_entry = new char[total_size];
+    log_file_.read(log_entry, total_size);
+    if (log_file_.bad()) {
+        LOG(ERROR) << "DiskManager::ReadLogEntry: error while "
+                      "reading log entry";
+        return absl::InternalError("error in reading log entry");
+    }
+
+    return log_entry;
 }
 
 page_id_t DiskManager::AllocateNewPage() { return INVALID_PAGE_ID; }

@@ -74,7 +74,7 @@ class LogEntry {
             return value_;
         }
 
-        return std::nullopt;
+        return absl::nullopt;
     }
 
     // Serialize the contents and store in the given data pointer

@@ -128,7 +128,7 @@ TEST(LogEntryTest, SetDeserialization) {
 
     EXPECT_EQ(log_entry->GetKey(), deserialized_log_entry->GetKey());
 
-    LOG(INFO) << "LogEntryTest::SetDeserialization: Key: "
+    LOG(INFO) << "LogEntryTest::SetDeserialization: Value: "
               << log_entry->GetValue().value().data() << " "
               << deserialized_log_entry->GetValue().value().data();
 

@@ -21,7 +21,7 @@ class DiskManager {
     DiskManager(const DiskManager&) = delete;
     DiskManager& operator=(const DiskManager&) = delete;
 
-    ~DiskManager() = default;
+    ~DiskManager();
 
     // Load the database from the given db path.
     //
@@ -37,7 +37,7 @@ class DiskManager {
     absl::Status WriteLogEntry(char* log_entry, int size);
 
     // Read the log entry at the given offset
-    absl::StatusOr<std::unique_ptr<char>> ReadLogEntry(int offset);
+    absl::StatusOr<char*> ReadLogEntry(int offset);
 
     // Allocate a new page by incrementing the next page id
     page_id_t AllocateNewPage();
