@@ -11,7 +11,7 @@ StorageImpl::StorageImpl(const Options& options, absl::string_view db_path)
       log_manager_(new LogManager(disk_manager_)),
       buffer_manager_(new BufferManager(disk_manager_)),
       recovery_manager_(new RecoveryManager(log_manager_)),
-      index_(new BplusTreeIndex(buffer_manager_)) {}
+      index_(new BplusTreeIndex(buffer_manager_, disk_manager_)) {}
 
 StorageImpl::~StorageImpl() {
     delete buffer_manager_;
@@ -19,6 +19,7 @@ StorageImpl::~StorageImpl() {
     delete disk_manager_;
     delete recovery_manager_;
     delete index_;
+    delete root_page_;
 }
 
 absl::Status StorageImpl::Set(const WriteOptions& options,
@@ -82,31 +83,48 @@ absl::StatusOr<std::string> StorageImpl::Get(const ReadOptions& options,
 absl::Status StorageImpl::Recover(const Options& options) {
     LOG(INFO) << "StorageImpl::Recover: Start";
 
-    absl::Status s = disk_manager_->LoadDB();
+    bool init_log_manager = true;
+    absl::StatusOr<RootPage*> s = disk_manager_->LoadDB();
+
     if (s.ok()) {
+        root_page_ = *s;
+
         if (options.error_if_exists) {
             LOG(ERROR) << "StorageImpl::Recover: database files already exist";
-            s = absl::AlreadyExistsError("Database files already exist");
+            return absl::AlreadyExistsError("Database files already exist");
         } else {
             // do the actual recovery
+
+            init_log_manager = false;
         }
     } else {
         // TODO: consider checking if the error is not found error
         if (options.create_if_not_exists) {
             s = disk_manager_->CreateDBFilesAndLoadDB();
+            if (!s.ok()) {
+                return s.status();
+            }
 
-            // TODO: setup necessary first time info.
+            root_page_ = *s;
         } else {
             LOG(ERROR) << "StorageImpl::Recover: database files not found";
-            s = absl::NotFoundError("Database files not found");
+            return s.status();
         }
     }
 
     LOG(INFO) << "StorageImpl::Recover: Done creating/loading DB files. "
                  "Reading log statements now";
 
-    s = log_manager_->Init();
-    return s;
+    if (init_log_manager) {
+        s = log_manager_->Init();
+        if (!s.ok()) {
+            LOG(ERROR)
+                << "StorageImpl::Recover: error while initing the log manager";
+            return s.status();
+        }
+    }
+
+    return s.status();
 }
 
 }  // namespace graphchaindb

@@ -25,7 +25,7 @@ class DiskManagerTest : public ::testing::Test {
 };
 
 TEST_F(DiskManagerTest, LoadDbReturnsNotFoundOnNonExistentDb) {
-    EXPECT_TRUE(absl::IsInternal(disk_manager->LoadDB()));
+    EXPECT_TRUE(absl::IsInternal(disk_manager->LoadDB().status()));
 }
 
 TEST_F(DiskManagerTest, CreateDBFilesSuccessWithNonExistentDB) {

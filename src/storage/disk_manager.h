@@ -28,10 +28,10 @@ class DiskManager {
     // MUST be called before any set/get operation on the database.
     //
     // Returns NotFoundError if the files aren't found
-    absl::Status LoadDB();
+    absl::StatusOr<RootPage*> LoadDB();
 
     // Create the db and log files on disk.
-    absl::Status CreateDBFilesAndLoadDB();
+    absl::StatusOr<RootPage*> CreateDBFilesAndLoadDB();
 
     // Write the given log entry into the log file
     absl::Status WriteLogEntry(char* log_entry, int size);
@@ -53,7 +53,6 @@ class DiskManager {
     std::fstream db_file_;
     std::fstream log_file_;
     int64_t next_page_id_{INVALID_PAGE_ID};
-    std::unique_ptr<RootPage> root_page_{nullptr};
 };
 
 // Exposed for testing

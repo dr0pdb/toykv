@@ -14,6 +14,7 @@
 #include "log_manager.h"
 #include "option.h"
 #include "recovery_manager.h"
+#include "root_page.h"
 #include "storage.h"
 
 namespace graphchaindb {
@@ -55,6 +56,7 @@ class StorageImpl : public Storage {
     BufferManager* buffer_manager_;
     RecoveryManager* recovery_manager_;
     BplusTreeIndex* index_;
+    RootPage* root_page_{nullptr};
 };
 
 }  // namespace graphchaindb

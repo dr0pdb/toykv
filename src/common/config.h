@@ -8,9 +8,11 @@ namespace graphchaindb {
 static constexpr int PAGE_SIZE = 4096;  // size of a page in Bytes
 static constexpr int STRING_CONTAINER_SIZE =
     64;  // size of the string container in Bytes
-static constexpr int PAGE_BUFFER_SIZE = 10;  // size of the buffer pool cache
+static constexpr int PAGE_BUFFER_SIZE = 50;  // size of the buffer pool cache
 static constexpr int INVALID_PAGE_ID = -1;   // indicates an invalid page
 static constexpr int ROOT_PAGE_ID = 0;       // id of the root database page
+static constexpr int STARTING_NORMAL_PAGE_ID =
+    1;  // id of the first non-special page
 
 static constexpr int VERBOSE_CHEAP =
     1;  // verbose logging which includes should be cheap

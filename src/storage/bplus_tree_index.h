@@ -6,6 +6,7 @@
 #include "absl/strings/string_view.h"
 #include "bplus_tree.h"
 #include "buffer_manager.h"
+#include "disk_manager.h"
 #include "option.h"
 #include "src/common/config.h"
 
@@ -17,13 +18,17 @@ namespace graphchaindb {
 //
 class BplusTreeIndex {
    public:
-    BplusTreeIndex(BufferManager* buffer_manager);
-    BplusTreeIndex(BufferManager* buffer_manager, KeyComparator* comp);
+    BplusTreeIndex(BufferManager* buffer_manager, DiskManager* disk_manager);
+    BplusTreeIndex(BufferManager* buffer_manager, DiskManager* disk_manager,
+                   KeyComparator* comp);
 
     BplusTreeIndex(const BplusTreeIndex&) = delete;
     BplusTreeIndex& operator=(const BplusTreeIndex&) = delete;
 
     ~BplusTreeIndex() = default;
+
+    // Init the index
+    absl::Status Init(page_id_t root_page_id = INVALID_PAGE_ID);
 
     // Sets the given value corresponding to the given key.
     // overwrites the existing value if it exists.
@@ -36,6 +41,7 @@ class BplusTreeIndex {
 
    private:
     BufferManager* buffer_manager_;
+    DiskManager* disk_manager_;
     BplusTree* bplus_tree_;
 };
 

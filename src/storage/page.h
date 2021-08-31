@@ -53,16 +53,16 @@ class Page {
     inline void SetPageDirty(bool new_value) { is_page_dirty_ = new_value; }
 
     // Aquire a read lock on the page
-    inline void aquireReadLock() { mu_.ReaderLock(); }
+    inline void AquireReadLock() { mu_.ReaderLock(); }
 
     // Release the read lock on the page
-    inline void releaseReadLock() { mu_.ReaderUnlock(); }
+    inline void ReleaseReadLock() { mu_.ReaderUnlock(); }
 
     // Aquire an exclusive lock on the page
-    inline void aquireExclusiveLock() { mu_.Lock(); }
+    inline void AquireExclusiveLock() { mu_.Lock(); }
 
     // Release the exclusive lock on the page
-    inline void releaseExclusiveLock() { mu_.Unlock(); }
+    inline void ReleaseExclusiveLock() { mu_.Unlock(); }
 
    private:
     inline void ZeroOut() { memset(data_, 0, PAGE_SIZE); }

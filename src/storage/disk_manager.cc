@@ -16,7 +16,7 @@ DiskManager::~DiskManager() {
     log_file_.close();
 }
 
-absl::Status DiskManager::LoadDB() {
+absl::StatusOr<RootPage*> DiskManager::LoadDB() {
     LOG(INFO) << "DiskManager::LoadDB: Start at " << db_path_;
 
     db_file_.open(db_path_ + ".db",
@@ -42,16 +42,15 @@ absl::Status DiskManager::LoadDB() {
         return s;
     }
 
-    std::unique_ptr<RootPage> p(reinterpret_cast<RootPage*>(root_data));
-    root_page_ = std::move(p);
+    RootPage* root_page = reinterpret_cast<RootPage*>(root_data);
 
-    CHECK_EQ(root_page_->GetPageId(), ROOT_PAGE_ID);
-    CHECK_EQ(root_page_->GetPageType(), PAGE_TYPE_ROOT);
-    CHECK_NE(root_page_->GetNextPageId(), INVALID_PAGE_ID);
-    return s;
+    CHECK_EQ(root_page->GetPageId(), ROOT_PAGE_ID);
+    CHECK_EQ(root_page->GetPageType(), PAGE_TYPE_ROOT);
+    CHECK_NE(root_page->GetNextPageId(), INVALID_PAGE_ID);
+    return root_page;
 }
 
-absl::Status DiskManager::CreateDBFilesAndLoadDB() {
+absl::StatusOr<RootPage*> DiskManager::CreateDBFilesAndLoadDB() {
     LOG(INFO) << "DiskManager::CreateDBFilesAndLoadDB: Start at " << db_path_;
 
     db_file_.open(db_path_ + ".db", std::ios::in | std::ios::binary |
@@ -69,9 +68,10 @@ absl::Status DiskManager::CreateDBFilesAndLoadDB() {
             "unable to create and open db and log files.");
     }
 
-    RootPage* temp_root = new RootPage();
-    absl::Status s = WritePage(ROOT_PAGE_ID, reinterpret_cast<char*>(temp_root),
-                               /* flush */ true);
+    std::unique_ptr<RootPage> temp_root = std::make_unique<RootPage>();
+    absl::Status s =
+        WritePage(ROOT_PAGE_ID, reinterpret_cast<char*>(temp_root.get()),
+                  /* flush */ true);
     if (!s.ok()) {
         return s;
     }
@@ -86,7 +86,6 @@ absl::Status DiskManager::CreateDBFilesAndLoadDB() {
 
 absl::Status DiskManager::WriteLogEntry(char* log_entry, int size) {
     LOG(INFO) << "DiskManager::WriteLogEntry: Start";
-    CHECK_NOTNULL(root_page_);
 
     log_file_.write(log_entry, size);
     if (log_file_.bad()) {
@@ -101,7 +100,6 @@ absl::Status DiskManager::WriteLogEntry(char* log_entry, int size) {
 
 absl::StatusOr<char*> DiskManager::ReadLogEntry(int offset) {
     LOG(INFO) << "DiskManager::ReadLogEntry: Start at offset: " << offset;
-    CHECK_NOTNULL(root_page_);
 
     log_file_.seekp(offset, std::ios::beg);
     if (log_file_.bad()) {

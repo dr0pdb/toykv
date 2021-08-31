@@ -13,7 +13,7 @@ LogManager::LogManager(DiskManager* disk_manager)
 absl::Status LogManager::Init() {
     LOG(INFO) << "LogManager::Init: Start";
 
-    // TODO: Read from log file and init the next log number
+    // TODO: Iterate the logs from the log file and init the next log number
     next_ln_ = 0;
 
     return absl::OkStatus();
