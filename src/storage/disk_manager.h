@@ -37,6 +37,7 @@ class DiskManager {
     absl::Status WriteLogEntry(char* log_entry, int size);
 
     // Read the log entry at the given offset
+    // INFO: Expects ownership of the buffer to be taken by the caller
     absl::StatusOr<char*> ReadLogEntry(int offset);
 
     // Allocate a new page by incrementing the next page id

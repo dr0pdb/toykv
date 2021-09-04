@@ -9,7 +9,6 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
-#include "disk_manager.h"
 #include "option.h"
 #include "src/common/config.h"
 
