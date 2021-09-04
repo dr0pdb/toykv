@@ -4,6 +4,7 @@ cc_library(
     name = "storage_library",
     srcs = glob(["**/*.cc"]),
     hdrs = glob(["**/*.h"]),
+    copts = ["-fno-exceptions"],
     visibility = ["//visibility:public"],
     deps = [
         "//src/common:common_library",

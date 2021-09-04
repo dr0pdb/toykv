@@ -16,6 +16,8 @@ absl::Status LogManager::Init() {
     // TODO: Iterate the logs from the log file and init the next log number
     next_ln_ = 0;
 
+    // TODO: Also record the next page id and return it.
+
     return absl::OkStatus();
 }
 

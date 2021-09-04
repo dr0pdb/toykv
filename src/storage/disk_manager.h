@@ -52,7 +52,6 @@ class DiskManager {
     std::string db_path_;
     std::fstream db_file_;
     std::fstream log_file_;
-    int64_t next_page_id_{INVALID_PAGE_ID};
 };
 
 // Exposed for testing

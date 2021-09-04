@@ -3,6 +3,7 @@ load("@rules_cc//cc:defs.bzl", "cc_test")
 cc_test(
     name = "storage_tests",
     srcs = glob(["**/*.cc"]),
+    copts = ["-fno-exceptions"],
     visibility = ["//visibility:public"],
     deps = [
         "//src/storage:storage_library",

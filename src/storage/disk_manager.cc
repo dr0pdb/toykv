@@ -46,7 +46,6 @@ absl::StatusOr<RootPage*> DiskManager::LoadDB() {
 
     CHECK_EQ(root_page->GetPageId(), ROOT_PAGE_ID);
     CHECK_EQ(root_page->GetPageType(), PAGE_TYPE_ROOT);
-    CHECK_NE(root_page->GetNextPageId(), INVALID_PAGE_ID);
     return root_page;
 }
 
@@ -90,7 +89,8 @@ absl::Status DiskManager::WriteLogEntry(char* log_entry, int size) {
     log_file_.write(log_entry, size);
     if (log_file_.bad()) {
         LOG(ERROR) << "DiskManager::WriteLogEntry: error while "
-                      "adding log entry";
+                      "adding log entry: "
+                   << strerror(errno);
         return absl::InternalError("Unable to add log entry in the log file.");
     }
     log_file_.flush();
@@ -104,7 +104,8 @@ absl::StatusOr<char*> DiskManager::ReadLogEntry(int offset) {
     log_file_.seekp(offset, std::ios::beg);
     if (log_file_.bad()) {
         LOG(ERROR) << "DiskManager::ReadLogEntry: error while "
-                      "seeking log file to the offset";
+                      "seeking log file to the offset: "
+                   << strerror(errno);
         return absl::InternalError(
             "error in seeking log file to the given offset");
     }
@@ -113,7 +114,8 @@ absl::StatusOr<char*> DiskManager::ReadLogEntry(int offset) {
     log_file_.read(header, LogEntry::HEADER_SIZE);
     if (log_file_.bad()) {
         LOG(ERROR) << "DiskManager::ReadLogEntry: error while "
-                      "reading log entry header";
+                      "reading log entry header: "
+                   << strerror(errno);
         return absl::InternalError(
             "error in seeking log file to the given offset");
     }
@@ -124,7 +126,8 @@ absl::StatusOr<char*> DiskManager::ReadLogEntry(int offset) {
     log_file_.seekp(offset, std::ios::beg);
     if (log_file_.bad()) {
         LOG(ERROR) << "DiskManager::ReadLogEntry: error while "
-                      "seeking log file to the offset after reading header";
+                      "seeking log file to the offset after reading header: "
+                   << strerror(errno);
         return absl::InternalError(
             "error in seeking log file to the given offset after reading "
             "header");
@@ -134,7 +137,8 @@ absl::StatusOr<char*> DiskManager::ReadLogEntry(int offset) {
     log_file_.read(log_entry, total_size);
     if (log_file_.bad()) {
         LOG(ERROR) << "DiskManager::ReadLogEntry: error while "
-                      "reading log entry";
+                      "reading log entry: "
+                   << strerror(errno);
         return absl::InternalError("error in reading log entry");
     }
 
@@ -151,7 +155,8 @@ absl::Status DiskManager::ReadPage(page_id_t page_id, char* destination) {
     db_file_.seekp(db_file_offset, std::ios::beg);
     if (db_file_.bad()) {
         LOG(ERROR) << "DiskManager::ReadPage: error while "
-                      "seeking db file to a page location";
+                      "seeking db file to a page location: "
+                   << strerror(errno);
         return absl::InternalError(
             "error in seeking db file to a page location");
     }
@@ -159,7 +164,8 @@ absl::Status DiskManager::ReadPage(page_id_t page_id, char* destination) {
     db_file_.read(destination, PAGE_SIZE);
     if (db_file_.bad()) {
         LOG(ERROR) << "DiskManager::ReadPage: error while "
-                      "reading page from disk";
+                      "reading page from disk: "
+                   << strerror(errno);
         return absl::InternalError("error in reading page from disk");
     }
 

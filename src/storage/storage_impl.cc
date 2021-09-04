@@ -9,7 +9,7 @@ namespace graphchaindb {
 StorageImpl::StorageImpl(const Options& options, absl::string_view db_path)
     : disk_manager_(new DiskManager(db_path)),
       log_manager_(new LogManager(disk_manager_)),
-      buffer_manager_(new BufferManager(disk_manager_)),
+      buffer_manager_(new BufferManager(disk_manager_, log_manager_)),
       recovery_manager_(new RecoveryManager(log_manager_)),
       index_(new BplusTreeIndex(buffer_manager_, disk_manager_)) {}
 
@@ -19,7 +19,6 @@ StorageImpl::~StorageImpl() {
     delete disk_manager_;
     delete recovery_manager_;
     delete index_;
-    delete root_page_;
 }
 
 absl::Status StorageImpl::Set(const WriteOptions& options,
@@ -85,9 +84,10 @@ absl::Status StorageImpl::Recover(const Options& options) {
 
     bool init_log_manager = true;
     absl::StatusOr<RootPage*> s = disk_manager_->LoadDB();
+    RootPage* root_page = nullptr;
 
     if (s.ok()) {
-        root_page_ = *s;
+        root_page = *s;
 
         if (options.error_if_exists) {
             LOG(ERROR) << "StorageImpl::Recover: database files already exist";
@@ -105,7 +105,7 @@ absl::Status StorageImpl::Recover(const Options& options) {
                 return s.status();
             }
 
-            root_page_ = *s;
+            root_page = *s;
         } else {
             LOG(ERROR) << "StorageImpl::Recover: database files not found";
             return s.status();
@@ -123,6 +123,8 @@ absl::Status StorageImpl::Recover(const Options& options) {
             return s.status();
         }
     }
+
+    // TODO: call buffer manager init with the next page id.
 
     return s.status();
 }

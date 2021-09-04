@@ -11,9 +11,9 @@ namespace graphchaindb {
 //
 // Format (size in bytes):
 //
-// --------------------------------------------------------------------
-// | PageType (4) | PageId (4) | NextPageId (4) | IndexRootPageId (4) |
-// --------------------------------------------------------------------
+// ---------------------------------------------------
+// | PageType (4) | PageId (4) | IndexRootPageId (4) |
+// ---------------------------------------------------
 //
 class RootPage {
    public:
@@ -28,14 +28,9 @@ class RootPage {
 
     page_id_t GetPageId() { return page_id_; }
 
-    page_id_t GetNextPageId() { return next_page_id_; }
-
    private:
     PageType page_type_{PAGE_TYPE_ROOT};
     page_id_t page_id_{ROOT_PAGE_ID};
-    // the next page id to allocate in the db file. Not the
-    // same as the next page id in other type of pages.
-    page_id_t next_page_id_{STARTING_NORMAL_PAGE_ID};
     // root page of the bplus tree index.
     page_id_t index_root_page_id{INVALID_PAGE_ID};
 };

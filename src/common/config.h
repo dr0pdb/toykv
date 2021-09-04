@@ -3,6 +3,8 @@
 
 #include <cstdint>
 
+#include "absl/strings/string_view.h"
+
 namespace graphchaindb {
 
 static constexpr int PAGE_SIZE = 4096;  // size of a page in Bytes
@@ -24,6 +26,8 @@ using ln_t = int64_t;       // log number
 
 static constexpr ln_t INVALID_LOG_NUMBER =
     -1;  // indicates invalid log sequence number
+
+static constexpr absl::string_view NEXT_PAGE_ID_KEY = "toykv-next-page-id";
 
 }  // namespace graphchaindb
 
