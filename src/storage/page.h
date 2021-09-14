@@ -1,6 +1,8 @@
 #ifndef STORAGE_PAGE_H
 #define STORAGE_PAGE_H
 
+#include <glog/logging.h>
+
 #include <algorithm>
 
 #include "absl/base/thread_annotations.h"
@@ -40,7 +42,7 @@ class Page {
     ~Page() = default;
 
     // Get the page id
-    inline page_id_t PageId() { return page_id_; }
+    inline page_id_t GetPageId() { return page_id_; }
 
     // Get the actual page data
     inline char* GetData() { return data_; }
@@ -53,16 +55,28 @@ class Page {
     inline void SetPageDirty(bool new_value) { is_page_dirty_ = new_value; }
 
     // Aquire a read lock on the page
-    inline void AquireReadLock() { mu_.ReaderLock(); }
+    inline void AquireReadLock() {
+        LOG(INFO) << "Page::AquireReadLock: page_id " << page_id_;
+        mu_.ReaderLock();
+    }
 
     // Release the read lock on the page
-    inline void ReleaseReadLock() { mu_.ReaderUnlock(); }
+    inline void ReleaseReadLock() {
+        LOG(INFO) << "Page::ReleaseReadLock: page_id " << page_id_;
+        mu_.ReaderUnlock();
+    }
 
     // Aquire an exclusive lock on the page
-    inline void AquireExclusiveLock() { mu_.Lock(); }
+    inline void AquireExclusiveLock() {
+        LOG(INFO) << "Page::AquireExclusiveLock: page_id " << page_id_;
+        mu_.Lock();
+    }
 
     // Release the exclusive lock on the page
-    inline void ReleaseExclusiveLock() { mu_.Unlock(); }
+    inline void ReleaseExclusiveLock() {
+        LOG(INFO) << "Page::ReleaseExclusiveLock: page_id " << page_id_;
+        mu_.Unlock();
+    }
 
    private:
     inline void ZeroOut() { memset(data_, 0, PAGE_SIZE); }

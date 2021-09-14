@@ -40,9 +40,6 @@ class DiskManager {
     // INFO: Expects ownership of the buffer to be taken by the caller
     absl::StatusOr<char*> ReadLogEntry(int offset);
 
-    // Allocate a new page by incrementing the next page id
-    page_id_t AllocateNewPage();
-
     // Store the contents of the given page id into the destination buffer
     absl::Status ReadPage(page_id_t page_id, char* destination);
 

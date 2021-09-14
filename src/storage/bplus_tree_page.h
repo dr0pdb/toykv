@@ -13,11 +13,13 @@ namespace graphchaindb {
 // B+ tree page types have.
 //
 // Format (size in bytes)
-// -------------------------------------------------
-// | PageType (4) | PageId (4) | Parent PageId (4) |
-// -------------------------------------------------
+// -------------------------------------------------------------
+// | PageType (4) | PageId (4) | Parent PageId (4) | Count (4) |
+// -------------------------------------------------------------
 //
 class BplusTreePage {
+    friend class BplusTree;
+
    public:
     BplusTreePage() = default;
 
@@ -30,16 +32,33 @@ class BplusTreePage {
     //
     // MUST be called after allocating the page and before doing anything useful
     void InitPage(page_id_t page_id, PageType page_type,
-                  page_id_t parent_page_id) {
+                  page_id_t parent_page_id, uint32_t count) {
         page_id_ = page_id;
         page_type_ = page_type;
         parent_page_id_ = parent_page_id;
+        count_ = count;
     }
+
+    // Get the page type
+    PageType GetPageType() { return page_type_; }
+
+    // Get the page id
+    page_id_t GetPageId() { return page_id_; }
+
+    // Get the parent page id
+    page_id_t GetParentPageId() { return parent_page_id_; }
+
+    // Get the count of keys written in the page
+    uint32_t GetCount() { return count_; }
+
+    // Get the total keys that can be written in the page
+    virtual uint32_t GetTotalKeyCount() = 0;
 
    private:
     PageType page_type_;
     page_id_t page_id_;
     page_id_t parent_page_id_;
+    uint32_t count_{0};
 };
 
 }  // namespace graphchaindb

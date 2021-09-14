@@ -18,12 +18,12 @@ struct Options {
 
 // Provides options while storing key value pairs in storage
 struct WriteOptions {
-    WriteOptions();
+    WriteOptions() = default;
 };
 
 // Provides options while reading key value pairs from storage
 struct ReadOptions {
-    ReadOptions();
+    ReadOptions() = default;
 };
 
 }  // namespace graphchaindb

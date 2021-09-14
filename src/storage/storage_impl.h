@@ -37,8 +37,8 @@ class StorageImpl : public Storage {
                      absl::string_view value) override;
 
     // Gets the latest value corresponding to the given key.
-    absl::StatusOr<std::string> Get(const ReadOptions& options,
-                                    absl::string_view key) override;
+    absl::StatusOr<absl::string_view> Get(const ReadOptions& options,
+                                          absl::string_view key) override;
 
     // Delete the value corresponding to the given key.
     //

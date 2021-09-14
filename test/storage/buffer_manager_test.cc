@@ -52,7 +52,8 @@ TEST_F(BufferManagerTest, AllocatePageSuccess) {
     for (int i = 0; i < 5; i++) {
         auto page_status = buffer_manager->AllocateNewPage();
         EXPECT_TRUE(page_status.ok());
-        EXPECT_EQ(page_status.value()->PageId(), STARTING_NORMAL_PAGE_ID + i);
+        EXPECT_EQ(page_status.value()->GetPageId(),
+                  STARTING_NORMAL_PAGE_ID + i);
     }
 }
 

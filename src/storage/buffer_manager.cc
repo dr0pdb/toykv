@@ -19,21 +19,31 @@ absl::Status BufferManager::Init(page_id_t next_page_id) {
 absl::StatusOr<Page*> BufferManager::GetPageWithId(page_id_t page_id) {
     LOG(INFO) << "BufferManager::GetPageWithId: Start with page_id " << page_id;
 
-    // TODO: needs lock
+    mu_.Lock();
+
     auto cache_itr = page_id_to_cache_index_.find(page_id);
     if (cache_itr != page_id_to_cache_index_.end()) {
         int cache_index = cache_itr->second;
+
+        LOG(INFO)
+            << "BufferManager::GetPageWithId: Found page in cache at index: "
+            << cache_index;
 
         cache_[cache_index].AquireExclusiveLock();
         cache_[cache_index].pin_count_++;
         cache_[cache_index].ReleaseExclusiveLock();
 
+        mu_.Unlock();
         return &cache_[cache_index];
     }
 
+    LOG(INFO) << "BufferManager::GetPageWithId: Page not found in cache";
+
     auto index_or_status = findIndexToEvict(page_id);
     if (!index_or_status.ok()) {
-        // TODO: log
+        LOG(ERROR) << "BufferManager::GetPageWithId: error while finding index "
+                      "to evict";
+        mu_.Unlock();
         return index_or_status.status();
     }
 
@@ -42,11 +52,15 @@ absl::StatusOr<Page*> BufferManager::GetPageWithId(page_id_t page_id) {
     cache_[cache_index].pin_count_++;
     cache_[cache_index].ReleaseExclusiveLock();
 
+    mu_.Unlock();
+
     return &cache_[cache_index];
 }
 
 absl::StatusOr<Page*> BufferManager::AllocateNewPage() {
     LOG(INFO) << "BufferManager::AllocateNewPage: Start";
+
+    mu_.Lock();
 
     absl::StatusOr<std::unique_ptr<LogEntry>> sOrLogEntry =
         log_manager_->PrepareLogEntry(NEXT_PAGE_ID_KEY,
@@ -65,16 +79,17 @@ absl::StatusOr<Page*> BufferManager::AllocateNewPage() {
         return s;
     }
 
-    // todo: needs a lock
     auto page_id = next_page_id_++;
 
     auto indexOrStatus = findIndexToEvict(page_id);
     if (!indexOrStatus.ok()) {
-        // TODO: logs
+        LOG(ERROR) << "BufferManager::AllocateNewPage: error while finding "
+                      "index to evict";
         return indexOrStatus.status();
     }
 
     auto index = indexOrStatus.value();
+    LOG(INFO) << "BufferManager::AllocateNewPage: found slot index: " << index;
 
     cache_[index].AquireExclusiveLock();
     cache_[index].pin_count_++;
@@ -82,7 +97,7 @@ absl::StatusOr<Page*> BufferManager::AllocateNewPage() {
     cache_[index].is_page_dirty_ = false;
     cache_[index].ReleaseExclusiveLock();
 
-    // TODO: update the maps
+    mu_.Unlock();
 
     return &cache_[index];
 }
@@ -117,6 +132,7 @@ absl::Status BufferManager::UnpinPage(page_id_t page_id, bool is_dirty) {
 }
 
 // Find a free slot in the buffer cache. It doesn't update the maps.
+// REQUIRES: mu_ to be held by the caller
 absl::StatusOr<int> BufferManager::findIndexToEvict(page_id_t new_page_id) {
     LOG(INFO) << "BufferManager::findIndexToEvict: Start with new_page_id "
               << new_page_id;
@@ -124,7 +140,6 @@ absl::StatusOr<int> BufferManager::findIndexToEvict(page_id_t new_page_id) {
     int cache_index = -1;
     page_id_t existing_page_id = INVALID_PAGE_ID;
 
-    // todo: needs a lock
     if (cache_index_to_page_id_.size() < PAGE_BUFFER_SIZE) {
         for (int i = 0; i < PAGE_BUFFER_SIZE; i++) {
             if (cache_index_to_page_id_.find(i) ==
@@ -138,18 +153,36 @@ absl::StatusOr<int> BufferManager::findIndexToEvict(page_id_t new_page_id) {
             << "BufferManager::findIndexToEvict: programming "
                "error - expected index to be non-negative";
     } else {
-        // TODO: evict an existing page and update existing_page_id
+        // TODO: evict an existing page (pin count should be zero) and update
+        // existing_page_id
     }
 
     if (cache_index == -1) {
-        return absl::InternalError("");
+        LOG(ERROR)
+            << "BufferManager::findIndexToEvict: couldn't find a page to evict";
+        return absl::InternalError(
+            "BufferManager::findIndexToEvict: couldn't find a page to evict");
     }
+
+    LOG(INFO) << "BufferManager::findIndexToEvict: found index to evict: "
+              << cache_index;
 
     Page* page = &cache_[cache_index];
     page->AquireExclusiveLock();
 
     if (page->GetPageDirty()) {
-        // flush to disk at existing_page_id
+        CHECK_NE(existing_page_id, INVALID_PAGE_ID)
+            << "BufferManager::findIndexToEvict: programming "
+               "error - existing page id is invalid but page is dirty.";
+
+        auto existing_page_write_status =
+            disk_manager_->WritePage(existing_page_id, page->GetData());
+        if (!existing_page_write_status.ok()) {
+            LOG(ERROR) << "BufferManager::findIndexToEvict: error while "
+                          "writing existing page to disk";
+
+            return existing_page_write_status;
+        }
     }
 
     page->pin_count_ = 0;

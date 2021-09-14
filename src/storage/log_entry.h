@@ -163,12 +163,6 @@ class LogEntry {
     std::string value_;  // could be empty
 };
 
-// Exposed for testing
-static constexpr absl::string_view TEST_KEY_1 = "test_key_1";
-static constexpr absl::string_view TEST_KEY_2 = "test_key_2";
-static constexpr absl::string_view TEST_VALUE_1 = "test_value_1";
-static constexpr absl::string_view TEST_VALUE_2 = "test_value_2";
-
 }  // namespace graphchaindb
 
 #endif  // STORAGE_LOG_ENTRY_H

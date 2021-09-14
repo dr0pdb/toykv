@@ -33,18 +33,33 @@ class BplusTree {
     // TODO: take the root page id and return statusOr of pageid?
     absl::Status Init(page_id_t root_page_id = INVALID_PAGE_ID);
 
-    // Sets the given value corresponding to the given key.
+    // Insert the given value corresponding to the given key. If the value is
+    // not provided, a tombstone value is written which indicates deletion.
+    //
     // overwrites the existing value if it exists.
-    absl::Status Set(const WriteOptions& options, absl::string_view key,
-                     absl::string_view value);
+    absl::Status Insert(const WriteOptions& options, absl::string_view key,
+                        absl::optional<absl::string_view> value);
 
     // Gets the latest value corresponding to the given key.
-    absl::StatusOr<std::string> Get(const ReadOptions& options,
-                                    absl::string_view key);
+    absl::StatusOr<absl::string_view> Get(const ReadOptions& options,
+                                          absl::string_view key);
 
    private:
-    // update the btree root page id in the db root page
-    absl::Status UpdateRootPageId(page_id_t root_page_id);
+    absl::Status InsertNonFull(absl::string_view key,
+                               absl::optional<absl::string_view> value,
+                               Page* page);
+
+    // Split the given child page into two pages and make it the child of the
+    // parent page at the given index (0 based)
+    //
+    // IMPORTANT: Doesn't unpin the parent_page and child_page
+    absl::Status SplitChild(Page* parent_page, uint32_t index,
+                            Page* child_page);
+
+    absl::StatusOr<absl::string_view> GetFromPage(absl::string_view key,
+                                                  Page* page_container);
+
+    bool IsPageFull(Page* page);
 
     KeyComparator* comp_;
     BufferManager* buffer_manager_;

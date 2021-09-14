@@ -32,7 +32,7 @@ class StringContainer {
 
     // TODO: come back to this.
     StringContainer(const StringContainer&) = delete;
-    StringContainer& operator=(const StringContainer&) = delete;
+    StringContainer& operator=(const StringContainer&) = default;
 
     // Get the string length
     inline int32_t GetStringLength() {
@@ -40,15 +40,24 @@ class StringContainer {
     }
 
     // Get the string data stored in the container
-    inline char* GetStringData() {
+    inline absl::string_view GetStringData() {
         // TODO: handle overflow page structure
-        return reinterpret_cast<char*>(data_ + 4);
+        return reinterpret_cast<char*>(data_ + sizeof(int32_t));
     }
 
     // Set the string data stored in the container
     inline void SetStringData(absl::string_view value) {
-        // TODO
+        auto len = value.length();
+        memcpy(data_, &len, sizeof(int32_t));
+
+        if (len <= 60) {
+            memcpy(data_ + sizeof(int32_t), value.begin(), value.length());
+        } else {
+            // TODO: implement overflow handling
+        }
     }
+
+    inline void EraseStringData() { memset(data_, 0, sizeof(int32_t)); }
 
    private:
     char data_[STRING_CONTAINER_SIZE];

@@ -45,15 +45,17 @@ class BufferManager {
    private:
     // Find an empty slot in the cache or evict one of the pages
     // Also updates the search maps in case a slot was found
+    // REQUIRES: mu_ to be held by the caller
     absl::StatusOr<int> findIndexToEvict(page_id_t new_page_id);
 
     DiskManager* disk_manager_;
     LogManager* log_manager_;
-    absl::Mutex mu_;  // protects cache_ and page_id_to_cache_index_
+    absl::Mutex mu_;  // protects page_id_to_cache_index_ and
+                      // cache_index_to_page_id_
     page_id_t next_page_id_{STARTING_NORMAL_PAGE_ID} GUARDED_BY(mu_);
-    Page cache_[PAGE_BUFFER_SIZE] GUARDED_BY(mu_);
     std::map<page_id_t, int> page_id_to_cache_index_ GUARDED_BY(mu_);
     std::map<int, page_id_t> cache_index_to_page_id_ GUARDED_BY(mu_);
+    Page cache_[PAGE_BUFFER_SIZE];
 };
 
 }  // namespace graphchaindb

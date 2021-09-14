@@ -1,0 +1,14 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Storage (Debug)",
+            "type": "shell",
+            "command": "bazel build src/storage:storage_library -c dbg",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+        }
+    ]
+}

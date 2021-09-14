@@ -72,8 +72,8 @@ absl::Status StorageImpl::Delete(const WriteOptions& options,
     return s;
 }
 
-absl::StatusOr<std::string> StorageImpl::Get(const ReadOptions& options,
-                                             absl::string_view key) {
+absl::StatusOr<absl::string_view> StorageImpl::Get(const ReadOptions& options,
+                                                   absl::string_view key) {
     // get from index
 
     return "hello";
@@ -124,7 +124,8 @@ absl::Status StorageImpl::Recover(const Options& options) {
         }
     }
 
-    // TODO: call buffer manager init with the next page id.
+    // TODO: call buffer manager init with the next page id. the next page id
+    // should be fetched from the log manager init method
 
     return s.status();
 }

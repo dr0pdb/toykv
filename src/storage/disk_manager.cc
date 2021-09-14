@@ -145,8 +145,6 @@ absl::StatusOr<char*> DiskManager::ReadLogEntry(int offset) {
     return log_entry;
 }
 
-page_id_t DiskManager::AllocateNewPage() { return INVALID_PAGE_ID; }
-
 absl::Status DiskManager::ReadPage(page_id_t page_id, char* destination) {
     LOG(INFO) << "DiskManager::ReadPage: Start for page id: " << page_id;
     CHECK_NE(page_id, INVALID_PAGE_ID);
@@ -168,6 +166,9 @@ absl::Status DiskManager::ReadPage(page_id_t page_id, char* destination) {
                    << strerror(errno);
         return absl::InternalError("error in reading page from disk");
     }
+
+    // TODO: what is read size < page size
+    // TODO: what if page_id position is more than the file size?
 
     return absl::OkStatus();
 }
@@ -197,6 +198,9 @@ absl::Status DiskManager::WritePage(page_id_t page_id, char* data, bool flush) {
     if (flush) {
         db_file_.flush();
     }
+
+    // TODO: what is read size < page size
+    // TODO: what if page_id position is more than the file size?
 
     return absl::OkStatus();
 }

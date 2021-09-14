@@ -6,6 +6,7 @@ cc_test(
     copts = ["-fno-exceptions"],
     visibility = ["//visibility:public"],
     deps = [
+        "//src/common:common_library",
         "//src/storage:storage_library",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",

@@ -15,6 +15,10 @@ static constexpr int INVALID_PAGE_ID = -1;   // indicates an invalid page
 static constexpr int ROOT_PAGE_ID = 0;       // id of the root database page
 static constexpr int STARTING_NORMAL_PAGE_ID =
     1;  // id of the first non-special page
+static constexpr int BPLUS_LEAF_KEY_VALUE_SIZE =
+    30;  // maximum number of key-value pairs in a leaf node
+static constexpr int BPLUS_INTERNAL_KEY_PAGE_ID_SIZE =
+    49;  // maximum number of key-pageid pairs in an internal node
 
 static constexpr int VERBOSE_CHEAP =
     1;  // verbose logging which includes should be cheap
