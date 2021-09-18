@@ -2,6 +2,7 @@
 #define STORAGE_BPLUS_TREE_PAGE_LEAF_H
 
 #include <glog/logging.h>
+#include <gtest/gtest_prod.h>
 
 #include "bplus_tree_page.h"
 #include "src/common/config.h"
@@ -56,17 +57,14 @@ class BplusTreeLeafPage : public BplusTreePage {
     // set the next page id
     void SetNextPage(page_id_t next_page_id);
 
-    // Get the total keys that can be written in the page
-    inline uint32_t GetTotalKeyCount() override {
-        return BPLUS_LEAF_KEY_VALUE_SIZE;
-    }
-
     // Returns if the page is full
     bool IsFull() {
         return BplusTreePage::GetCount() == BPLUS_LEAF_KEY_VALUE_SIZE;
     }
 
    private:
+    FRIEND_TEST(BplusTreeTest, SplitChildLeafSucceeds);
+
     page_id_t next_page_id_;
     BplusTreeKeyValuePair
         data_[BPLUS_LEAF_KEY_VALUE_SIZE];  // array of key value pairs

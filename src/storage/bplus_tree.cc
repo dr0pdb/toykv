@@ -35,27 +35,25 @@ absl::Status BplusTree::Init(page_id_t root_page_id) {
         }
 
         auto root_page_container = root_page_container_status.value();
+        root_page_container->AquireExclusiveLock();
+
         auto root_page = reinterpret_cast<BplusTreeLeafPage*>(
             root_page_container->GetData());
 
         root_page->InitPage(root_page_container->GetPageId(),
                             PageType::PAGE_TYPE_BPLUS_LEAF, INVALID_PAGE_ID);
 
-        auto unpin_status =
-            buffer_manager_->UnpinPage(root_page_container->GetPageId(),
-                                       /* is_dirty */ true);
-        if (!unpin_status.ok()) {
-            LOG(ERROR) << "BplusTree::Init: unpinning root page failed";
-            return unpin_status;
-        }
+        buffer_manager_->UnpinPage(root_page_container,
+                                   /* is_dirty */ true);
+
+        auto new_root_id = root_page_container->GetPageId();
+        root_page_container->ReleaseExclusiveLock();
 
         LOG(INFO) << "BplusTree::Init: wrote new root page on disk. updating "
                      "root page id to : "
-                  << root_page_container->GetPageId();
-        // TODO: write a log entry which sets root to this new root page id
+                  << new_root_id;
 
-        root_page_id_ = root_page_container->GetPageId();
-        return absl::OkStatus();
+        return UpdateRoot(new_root_id);
     }
 
     root_page_id_ = root_page_id;
@@ -82,7 +80,10 @@ absl::Status BplusTree::Insert(const WriteOptions& options,
     auto root_page_container = status_or_root_page_container.value();
     CHECK_NOTNULL(root_page_container);
 
+    root_page_container->AquireExclusiveLock();
+
     bool is_full = IsPageFull(root_page_container);
+    absl::Status s;
     if (is_full) {
         LOG(INFO) << "BplusTree::Insert: root page is full. creating new root";
 
@@ -90,6 +91,8 @@ absl::Status BplusTree::Insert(const WriteOptions& options,
             buffer_manager_->AllocateNewPage();
         if (!status_or_new_root_page_container.ok()) {
             LOG(ERROR) << "BplusTree::Insert: creating new root page failed";
+
+            root_page_container->ReleaseExclusiveLock();
             return status_or_new_root_page_container.status();
         }
 
@@ -97,24 +100,51 @@ absl::Status BplusTree::Insert(const WriteOptions& options,
             status_or_new_root_page_container.value();
         CHECK_NOTNULL(new_root_page_container);
 
+        new_root_page_container->AquireExclusiveLock();
+
+        auto new_root_page = reinterpret_cast<BplusTreeInternalPage*>(
+            new_root_page_container->GetData());
+        new_root_page->InitPage(new_root_page_container->GetPageId(),
+                                PageType::PAGE_TYPE_BPLUS_INTERNAL,
+                                INVALID_PAGE_ID);
+
+        new_root_page->children_[0] = root_page_id_;
+
         auto split_status =
-            SplitChild(new_root_page_container, 0, root_page_container);
+            SplitChild(new_root_page_container, 1, root_page_container);
         if (!split_status.ok()) {
             LOG(ERROR) << "BplusTree::Insert: creating new root page failed";
-            return split_status;
+
+            new_root_page_container->ReleaseExclusiveLock();
+            root_page_container->ReleaseExclusiveLock();
+            return split_status.status();
         }
 
-        // TODO: update root_page_id_?
+        s = UpdateRoot(new_root_page_container->GetPageId());
+        if (!s.ok()) {
+            LOG(ERROR) << "BplusTree::Insert: updating root failed";
 
-        return InsertNonFull(key, value, root_page_container);
+            new_root_page_container->ReleaseExclusiveLock();
+            root_page_container->ReleaseExclusiveLock();
+            return s;
+        }
+
+        s = InsertNonFull(key, value, new_root_page_container);
+
+        buffer_manager_->UnpinPage(new_root_page_container,
+                                   /* is_dirty */ true);
+        new_root_page_container->ReleaseExclusiveLock();
+    } else {
+        LOG(INFO) << "BplusTree::Insert: root page is non-full";
+        s = InsertNonFull(key, value, root_page_container);
     }
 
-    LOG(INFO) << "BplusTree::Insert: root page is non-full";
-    return InsertNonFull(key, value, root_page_container);
+    buffer_manager_->UnpinPage(root_page_container, /* is_dirty */ true);
+    root_page_container->ReleaseExclusiveLock();
+
+    return s;
 }
 
-// TODO: Do I need to take a lock on the page container?
-// TODO: think about pinning and unpinning of pages.
 absl::Status BplusTree::InsertNonFull(absl::string_view key,
                                       absl::optional<absl::string_view> value,
                                       Page* page_container) {
@@ -128,6 +158,8 @@ absl::Status BplusTree::InsertNonFull(absl::string_view key,
               << " and page_type: " << page_type;
 
     if (page_type == PageType::PAGE_TYPE_BPLUS_LEAF) {
+        LOG(INFO) << "BplusTree::InsertNonFull: reached the leaf page";
+
         auto leaf_page =
             reinterpret_cast<BplusTreeLeafPage*>(page_container->GetData());
 
@@ -153,14 +185,14 @@ absl::Status BplusTree::InsertNonFull(absl::string_view key,
         }
 
         leaf_page->count_++;
-        return buffer_manager_->UnpinPage(bplus_tree_page->GetPageId(),
-                                          /* is_dirty */ true);
     } else if (page_type == PageType::PAGE_TYPE_BPLUS_INTERNAL) {
+        LOG(INFO) << "BplusTree::InsertNonFull: an internal node";
+
         auto internal_page =
             reinterpret_cast<BplusTreeInternalPage*>(page_container->GetData());
 
-        auto insert_index = internal_page->count_;
-        for (insert_index = internal_page->count_ - 1;
+        int32_t insert_index = internal_page->count_;
+        for (insert_index = (int32_t)internal_page->count_ - 1;
              insert_index >= 0 &&
              comp_->Compare(
                  key, internal_page->keys_[insert_index].GetStringData()) == -1;
@@ -168,22 +200,32 @@ absl::Status BplusTree::InsertNonFull(absl::string_view key,
         }
         insert_index++;
 
+        LOG(INFO)
+            << "BplusTree::InsertNonFull: insert index in the internal node is "
+            << insert_index;
+
         auto child_page_id = internal_page->children_[insert_index];
         auto child_page_container_or_status =
             buffer_manager_->GetPageWithId(child_page_id);
         if (!child_page_container_or_status.ok()) {
-            // Log it
+            LOG(ERROR) << "BplusTree::InsertNonFull: error while getting child "
+                          "page from buffer";
             return child_page_container_or_status.status();
         }
 
         auto child_page_container = child_page_container_or_status.value();
+        child_page_container->AquireExclusiveLock();
+
         bool is_full = IsPageFull(child_page_container);
         if (is_full) {
             auto split_status =
                 SplitChild(page_container, insert_index, child_page_container);
             if (!split_status.ok()) {
-                // LOG it
-                return split_status;
+                LOG(ERROR)
+                    << "BplusTree::InsertNonFull: error while splitting child";
+
+                child_page_container->ReleaseExclusiveLock();
+                return split_status.status();
             }
 
             if (comp_->Compare(
@@ -191,14 +233,33 @@ absl::Status BplusTree::InsertNonFull(absl::string_view key,
                 1) {
                 insert_index++;
 
-                // TODO: need to flush the child_page_container and update it
-                // since insert_index has changed.
+                buffer_manager_->UnpinPage(child_page_container,
+                                           /* is_dirty */ true);
+                child_page_container->ReleaseExclusiveLock();
+
+                auto updated_child_page_container_or_status =
+                    buffer_manager_->GetPageWithId(
+                        internal_page->children_[insert_index]);
+                if (!updated_child_page_container_or_status.ok()) {
+                    LOG(ERROR) << "BplusTree::InsertNonFull: error while "
+                                  "changing insert index";
+                    return updated_child_page_container_or_status.status();
+                }
+
+                child_page_container =
+                    updated_child_page_container_or_status.value();
+                child_page_container->AquireExclusiveLock();
             }
         }
 
-        return InsertNonFull(key, value, child_page_container);
+        auto insert_status = InsertNonFull(key, value, child_page_container);
+
+        buffer_manager_->UnpinPage(child_page_container, /* is_dirty */ true);
+        child_page_container->ReleaseExclusiveLock();
+
+        return insert_status;
     } else {
-        // LOG it
+        LOG(ERROR) << "BplusTree::InsertNonFull: unknown page type";
         return absl::InternalError(
             "BplusTree::InsertNonFull: unknown page type");
     }
@@ -220,11 +281,15 @@ bool BplusTree::IsPageFull(Page* page_container) {
         ->IsFull();
 }
 
-// TODO: need to hold locks on the container values before reading/writing data.
-absl::Status BplusTree::SplitChild(Page* parent_page_container, uint32_t index,
-                                   Page* child_page_container) {
+absl::StatusOr<page_id_t> BplusTree::SplitChild(Page* parent_page_container,
+                                                uint32_t index,
+                                                Page* child_page_container) {
     CHECK_NOTNULL(parent_page_container);
     CHECK_NOTNULL(child_page_container);
+
+    LOG(INFO) << "BplusTree::SplitChild: Init with parent page id: "
+              << parent_page_container->GetPageId() << " index: " << index
+              << " and child page id: " << child_page_container->GetPageId();
 
     auto parent_page = reinterpret_cast<BplusTreeInternalPage*>(
         parent_page_container->GetData());
@@ -232,16 +297,24 @@ absl::Status BplusTree::SplitChild(Page* parent_page_container, uint32_t index,
     auto status_or_second_child_page_container =
         buffer_manager_->AllocateNewPage();
     if (!status_or_second_child_page_container.ok()) {
+        LOG(ERROR) << "BplusTree::SplitChild: error while allocating second "
+                      "child page";
+
         return status_or_second_child_page_container.status();
     }
 
     auto second_child_page_container =
         status_or_second_child_page_container.value();
 
+    second_child_page_container->AquireExclusiveLock();
+
+    auto second_child_page_id = second_child_page_container->GetPageId();
     bool is_leaf =
         reinterpret_cast<BplusTreePage*>(child_page_container->GetData())
             ->GetPageType() == PageType::PAGE_TYPE_BPLUS_LEAF;
     if (is_leaf) {
+        LOG(INFO) << "BplusTree::SplitChild: the child node is a leaf";
+
         auto child_page = reinterpret_cast<BplusTreeLeafPage*>(
             child_page_container->GetData());
         auto second_child_page = reinterpret_cast<BplusTreeLeafPage*>(
@@ -250,8 +323,11 @@ absl::Status BplusTree::SplitChild(Page* parent_page_container, uint32_t index,
                                     PageType::PAGE_TYPE_BPLUS_LEAF,
                                     parent_page_container->GetPageId());
 
-        auto total_key_count = child_page->GetTotalKeyCount();
+        auto total_key_count = BPLUS_LEAF_KEY_VALUE_SIZE;
         auto start_right_half = total_key_count / 2;
+
+        LOG(INFO) << "BplusTree::SplitChild: Moving half of keys from "
+                     "child_page to second_child_page";
 
         // move half of keys from child_page to second_child_page
         for (auto idx = start_right_half; idx < total_key_count; idx++) {
@@ -259,8 +335,12 @@ absl::Status BplusTree::SplitChild(Page* parent_page_container, uint32_t index,
                 child_page->data_[idx];
         }
 
+        LOG(INFO) << "BplusTree::SplitChild: Adding second_child_page as child "
+                     "in the parent page";
+
         // add second_child_page as child in the parent page
-        for (auto idx = parent_page->count_; idx >= index + 1; idx--) {
+        for (int32_t idx = parent_page->count_; idx >= (int32_t)index + 1;
+             idx--) {
             parent_page->children_[idx + 1] = parent_page->children_[idx];
         }
         parent_page->children_[index] =
@@ -268,7 +348,8 @@ absl::Status BplusTree::SplitChild(Page* parent_page_container, uint32_t index,
 
         // add median key of child_page to parent page. Since the total key
         // count is even for leaf, we use the lower median.
-        for (auto idx = parent_page->count_ - 1; idx >= index; idx--) {
+        for (int32_t idx = parent_page->count_ - 1; idx >= (int32_t)index;
+             idx--) {
             parent_page->keys_[idx + 1] = parent_page->keys_[idx];
         }
         parent_page->keys_[index] = child_page->data_[start_right_half - 1].key;
@@ -277,13 +358,21 @@ absl::Status BplusTree::SplitChild(Page* parent_page_container, uint32_t index,
         second_child_page->count_ = total_key_count / 2;
         parent_page->count_++;
 
-        auto unpin_second_child_status =
-            buffer_manager_->UnpinPage(second_child_page_container->GetPageId(),
-                                       /* is_dirty */ true);
-        if (!unpin_second_child_status.ok()) {
-            return unpin_second_child_status;
-        }
+        LOG(INFO) << "BplusTree::SplitChild: Updating counts in all the three "
+                     "pages. New child_page count: "
+                  << child_page->count_
+                  << " second_child_page count: " << second_child_page->count_
+                  << " parent_page count: " << parent_page->count_;
+
+        child_page->SetParentPageId(parent_page->GetPageId());
+        second_child_page->SetParentPageId(parent_page->GetPageId());
+
+        buffer_manager_->UnpinPage(second_child_page_container,
+                                   /* is_dirty */ true);
     } else {
+        LOG(INFO)
+            << "BplusTree::SplitChild: the child node is an internal node";
+
         auto child_page = reinterpret_cast<BplusTreeInternalPage*>(
             child_page_container->GetData());
         auto second_child_page = reinterpret_cast<BplusTreeInternalPage*>(
@@ -292,8 +381,11 @@ absl::Status BplusTree::SplitChild(Page* parent_page_container, uint32_t index,
                                     PageType::PAGE_TYPE_BPLUS_INTERNAL,
                                     parent_page_container->GetPageId());
 
-        auto total_key_count = second_child_page->GetTotalKeyCount();
+        auto total_key_count = BPLUS_INTERNAL_KEY_PAGE_ID_SIZE;
         auto start_right_half = total_key_count / 2 + 1;
+
+        LOG(INFO) << "BplusTree::SplitChild: Moving half of keys from "
+                     "child_page to second_child_page";
 
         // move half of keys from child_page to second_child_page
         for (auto idx = start_right_half; idx < total_key_count; idx++) {
@@ -306,6 +398,9 @@ absl::Status BplusTree::SplitChild(Page* parent_page_container, uint32_t index,
             second_child_page->children_[idx - start_right_half - 1] =
                 child_page->children_[idx];
         }
+
+        LOG(INFO) << "BplusTree::SplitChild: Adding second_child_page as child "
+                     "in the parent page";
 
         // add second_child_page as child in the parent page
         for (auto idx = parent_page->count_; idx >= index + 1; idx--) {
@@ -320,19 +415,20 @@ absl::Status BplusTree::SplitChild(Page* parent_page_container, uint32_t index,
         }
         parent_page->keys_[index] = child_page->keys_[start_right_half - 1];
 
+        LOG(INFO)
+            << "BplusTree::SplitChild: Updating counts in all the three pages";
+
         child_page->count_ = total_key_count / 2;
         second_child_page->count_ = total_key_count / 2;
         parent_page->count_++;
 
-        auto unpin_second_child_status =
-            buffer_manager_->UnpinPage(second_child_page_container->GetPageId(),
-                                       /* is_dirty */ true);
-        if (!unpin_second_child_status.ok()) {
-            return unpin_second_child_status;
-        }
+        buffer_manager_->UnpinPage(second_child_page_container,
+                                   /* is_dirty */ true);
     }
 
-    return absl::OkStatus();
+    second_child_page_container->ReleaseExclusiveLock();
+
+    return second_child_page_id;
 }
 
 absl::StatusOr<absl::string_view> BplusTree::Get(const ReadOptions& options,
@@ -353,12 +449,7 @@ absl::StatusOr<absl::string_view> BplusTree::Get(const ReadOptions& options,
 
     auto res = GetFromPage(key, root_page_container);
 
-    auto s = buffer_manager_->UnpinPage(root_page_id_);
-    if (!s.ok()) {
-        LOG(ERROR) << "BplusTree::Get: unpinning root page failed";
-        return s;
-    }
-
+    buffer_manager_->UnpinPage(root_page_container);
     return res;
 }
 
@@ -424,13 +515,20 @@ absl::StatusOr<absl::string_view> BplusTree::GetFromPage(absl::string_view key,
     // TODO: This is inefficient. Implement latch crabbing - release parent lock
     // after locking child.
     page_container->ReleaseReadLock();
-    auto unpin_status =
-        buffer_manager_->UnpinPage(child_page_container->GetPageId());
-    if (!unpin_status.ok()) {
-        LOG(ERROR) << "BplusTree::Get: unpinning page failed";
-        return unpin_status;
-    }
+    buffer_manager_->UnpinPage(child_page_container);
     return res;
+}
+
+absl::Status BplusTree::UpdateRoot(page_id_t new_root_id) {
+    LOG(INFO) << "BplusTree::UpdateRoot: updating root_page_id_ to "
+              << new_root_id;
+
+    std::unique_lock l(mu_);
+    root_page_id_ = new_root_id;
+
+    // TODO: add log entry
+
+    return absl::OkStatus();
 }
 
 }  // namespace graphchaindb

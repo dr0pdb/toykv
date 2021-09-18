@@ -1,6 +1,8 @@
 #ifndef STORAGE_BPLUS_TREE_PAGE_INTERNAL_H
 #define STORAGE_BPLUS_TREE_PAGE_INTERNAL_H
 
+#include <gtest/gtest_prod.h>
+
 #include "bplus_tree_page.h"
 #include "src/common/config.h"
 
@@ -42,17 +44,14 @@ class BplusTreeInternalPage : public BplusTreePage {
         // TODO: set all children to invalid page id
     }
 
-    // Get the total keys that can be written in the page
-    inline uint32_t GetTotalKeyCount() override {
-        return BPLUS_INTERNAL_KEY_PAGE_ID_SIZE;
-    }
-
     // Returns if the page is full
     bool IsFull() {
         return BplusTreePage::GetCount() + 1 == BPLUS_INTERNAL_KEY_PAGE_ID_SIZE;
     }
 
    private:
+    FRIEND_TEST(BplusTreeTest, SplitChildLeafSucceeds);
+
     StringContainer keys_[BPLUS_INTERNAL_KEY_PAGE_ID_SIZE];
     page_id_t children_[BPLUS_INTERNAL_KEY_PAGE_ID_SIZE + 1];
 };

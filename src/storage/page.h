@@ -4,9 +4,9 @@
 #include <glog/logging.h>
 
 #include <algorithm>
+#include <shared_mutex>
 
 #include "absl/base/thread_annotations.h"
-#include "absl/synchronization/mutex.h"
 #include "src/common/config.h"
 
 namespace graphchaindb {
@@ -57,32 +57,32 @@ class Page {
     // Aquire a read lock on the page
     inline void AquireReadLock() {
         LOG(INFO) << "Page::AquireReadLock: page_id " << page_id_;
-        mu_.ReaderLock();
+        mu_.lock_shared();
     }
 
     // Release the read lock on the page
     inline void ReleaseReadLock() {
         LOG(INFO) << "Page::ReleaseReadLock: page_id " << page_id_;
-        mu_.ReaderUnlock();
+        mu_.unlock_shared();
     }
 
     // Aquire an exclusive lock on the page
     inline void AquireExclusiveLock() {
         LOG(INFO) << "Page::AquireExclusiveLock: page_id " << page_id_;
-        mu_.Lock();
+        mu_.lock();
     }
 
     // Release the exclusive lock on the page
     inline void ReleaseExclusiveLock() {
         LOG(INFO) << "Page::ReleaseExclusiveLock: page_id " << page_id_;
-        mu_.Unlock();
+        mu_.unlock();
     }
 
    private:
     inline void ZeroOut() { memset(data_, 0, PAGE_SIZE); }
 
     page_id_t page_id_;
-    absl::Mutex mu_;
+    std::shared_mutex mu_;
     int pin_count_ = 0;
     bool is_page_dirty_ = false;
     char data_[PAGE_SIZE] GUARDED_BY(mu_);

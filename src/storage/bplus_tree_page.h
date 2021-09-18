@@ -48,11 +48,13 @@ class BplusTreePage {
     // Get the parent page id
     page_id_t GetParentPageId() { return parent_page_id_; }
 
+    // Set the parent page id
+    void SetParentPageId(page_id_t parent_page_id) {
+        parent_page_id_ = parent_page_id;
+    }
+
     // Get the count of keys written in the page
     uint32_t GetCount() { return count_; }
-
-    // Get the total keys that can be written in the page
-    virtual uint32_t GetTotalKeyCount() = 0;
 
    private:
     PageType page_type_;

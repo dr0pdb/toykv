@@ -2,10 +2,9 @@
 #define STORAGE_BUFFER_MANAGER_H
 
 #include <map>
+#include <shared_mutex>
 
-#include "absl/base/thread_annotations.h"
 #include "absl/status/statusor.h"
-#include "absl/synchronization/mutex.h"
 #include "src/common/config.h"
 #include "src/storage/disk_manager.h"
 #include "src/storage/log_manager.h"
@@ -39,8 +38,9 @@ class BufferManager {
     // Allocates a new page and pins it
     absl::StatusOr<Page*> AllocateNewPage();
 
-    // Unpin the page with the given id
-    absl::Status UnpinPage(page_id_t page_id, bool is_dirty = false);
+    // Unpin the given page
+    // ASSUMES: Exclusive lock on the page is held by the caller
+    void UnpinPage(Page* page, bool is_dirty = false);
 
    private:
     // Find an empty slot in the cache or evict one of the pages
@@ -50,11 +50,11 @@ class BufferManager {
 
     DiskManager* disk_manager_;
     LogManager* log_manager_;
-    absl::Mutex mu_;  // protects page_id_to_cache_index_ and
-                      // cache_index_to_page_id_
-    page_id_t next_page_id_{STARTING_NORMAL_PAGE_ID} GUARDED_BY(mu_);
-    std::map<page_id_t, int> page_id_to_cache_index_ GUARDED_BY(mu_);
-    std::map<int, page_id_t> cache_index_to_page_id_ GUARDED_BY(mu_);
+    std::shared_mutex mu_;  // protects page_id_to_cache_index_ and
+                            // cache_index_to_page_id_
+    page_id_t next_page_id_{STARTING_NORMAL_PAGE_ID};
+    std::map<page_id_t, int> page_id_to_cache_index_;
+    std::map<int, page_id_t> cache_index_to_page_id_;
     Page cache_[PAGE_BUFFER_SIZE];
 };
 

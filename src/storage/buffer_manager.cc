@@ -19,7 +19,7 @@ absl::Status BufferManager::Init(page_id_t next_page_id) {
 absl::StatusOr<Page*> BufferManager::GetPageWithId(page_id_t page_id) {
     LOG(INFO) << "BufferManager::GetPageWithId: Start with page_id " << page_id;
 
-    mu_.Lock();
+    std::unique_lock l(mu_);
 
     auto cache_itr = page_id_to_cache_index_.find(page_id);
     if (cache_itr != page_id_to_cache_index_.end()) {
@@ -33,7 +33,6 @@ absl::StatusOr<Page*> BufferManager::GetPageWithId(page_id_t page_id) {
         cache_[cache_index].pin_count_++;
         cache_[cache_index].ReleaseExclusiveLock();
 
-        mu_.Unlock();
         return &cache_[cache_index];
     }
 
@@ -43,7 +42,6 @@ absl::StatusOr<Page*> BufferManager::GetPageWithId(page_id_t page_id) {
     if (!index_or_status.ok()) {
         LOG(ERROR) << "BufferManager::GetPageWithId: error while finding index "
                       "to evict";
-        mu_.Unlock();
         return index_or_status.status();
     }
 
@@ -52,15 +50,13 @@ absl::StatusOr<Page*> BufferManager::GetPageWithId(page_id_t page_id) {
     cache_[cache_index].pin_count_++;
     cache_[cache_index].ReleaseExclusiveLock();
 
-    mu_.Unlock();
-
     return &cache_[cache_index];
 }
 
 absl::StatusOr<Page*> BufferManager::AllocateNewPage() {
     LOG(INFO) << "BufferManager::AllocateNewPage: Start";
 
-    mu_.Lock();
+    std::unique_lock l(mu_);
 
     absl::StatusOr<std::unique_ptr<LogEntry>> sOrLogEntry =
         log_manager_->PrepareLogEntry(NEXT_PAGE_ID_KEY,
@@ -79,6 +75,7 @@ absl::StatusOr<Page*> BufferManager::AllocateNewPage() {
         return s;
     }
 
+    LOG(INFO) << "BufferManager::AllocateNewPage: wrote the log entry";
     auto page_id = next_page_id_++;
 
     auto indexOrStatus = findIndexToEvict(page_id);
@@ -97,38 +94,21 @@ absl::StatusOr<Page*> BufferManager::AllocateNewPage() {
     cache_[index].is_page_dirty_ = false;
     cache_[index].ReleaseExclusiveLock();
 
-    mu_.Unlock();
-
     return &cache_[index];
 }
 
-absl::Status BufferManager::UnpinPage(page_id_t page_id, bool is_dirty) {
-    LOG(INFO) << "BufferManager::UnpinPage: Start with page_id: " << page_id
-              << " is_dirty: " << is_dirty;
+void BufferManager::UnpinPage(Page* page, bool is_dirty) {
+    ASSERT_EXCLUSIVE_LOCK(page->mu_);
 
-    auto cache_itr = page_id_to_cache_index_.find(page_id);
-    if (cache_itr == page_id_to_cache_index_.end()) {
-        LOG(ERROR) << "BufferManager::UnpinPage: error while "
-                      "finding page with id: "
-                   << page_id;
-
-        return absl::NotFoundError(
-            "BufferManager::UnpinPage: unable to find page with id: " +
-            page_id);
-    }
-
-    int cache_index = cache_itr->second;
-    cache_[cache_index].AquireExclusiveLock();
+    LOG(INFO) << "BufferManager::UnpinPage: Start with page_id: "
+              << page->GetPageId() << " is_dirty: " << is_dirty;
 
     if (is_dirty) {
-        cache_[cache_index].is_page_dirty_ = true;
+        page->is_page_dirty_ = true;
     }
 
-    cache_[cache_index].pin_count_--;
-    CHECK_GE(cache_[cache_index].pin_count_, 0);
-
-    cache_[cache_index].ReleaseExclusiveLock();
-    return absl::OkStatus();
+    page->pin_count_--;
+    CHECK_GE(page->pin_count_, 0);
 }
 
 // Find a free slot in the buffer cache. It doesn't update the maps.
@@ -181,6 +161,7 @@ absl::StatusOr<int> BufferManager::findIndexToEvict(page_id_t new_page_id) {
             LOG(ERROR) << "BufferManager::findIndexToEvict: error while "
                           "writing existing page to disk";
 
+            page->ReleaseExclusiveLock();
             return existing_page_write_status;
         }
     }

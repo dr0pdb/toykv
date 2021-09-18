@@ -9,6 +9,8 @@
 #include "absl/strings/string_view.h"
 #include "src/common/config.h"
 #include "src/common/test_values.h"
+#include "src/storage/bplus_tree_page_internal.h"
+#include "src/storage/bplus_tree_page_leaf.h"
 #include "src/storage/buffer_manager.h"
 #include "src/storage/disk_manager.h"
 #include "src/storage/log_entry.h"
@@ -72,9 +74,21 @@ TEST_F(BplusTreeTest, SingleInsertGetSucceeds) {
     EXPECT_EQ(TEST_VALUE_1, value_or_status->data());
 }
 
+TEST_F(BplusTreeTest, MultipleInsertSucceeds) {
+    EXPECT_TRUE(Init().ok());
+    auto count = 40;
+
+    for (auto i = 0; i < count; i++) {
+        std::string key = "dummy_key_" + std::to_string(i);
+        std::string value = "dummy_value_" + std::to_string(i);
+
+        EXPECT_TRUE(bplus_tree->Insert(dummy_write_options, key, value).ok());
+    }
+}
+
 TEST_F(BplusTreeTest, Sequential100InsertGetSucceeds) {
     EXPECT_TRUE(Init().ok());
-    auto count = 10;
+    auto count = 100;
 
     for (auto i = 0; i < count; i++) {
         std::string key = "dummy_key_" + std::to_string(i);
@@ -91,6 +105,70 @@ TEST_F(BplusTreeTest, Sequential100InsertGetSucceeds) {
         EXPECT_TRUE(value_or_status.ok());
         EXPECT_EQ(value, value_or_status->data());
     }
+}
+
+TEST_F(BplusTreeTest, SplitChildLeafSucceeds) {
+    EXPECT_TRUE(Init().ok());
+
+    // setup
+    auto parent_page_container = buffer_manager->AllocateNewPage().value();
+    auto parent_page = reinterpret_cast<BplusTreeInternalPage*>(
+        parent_page_container->GetData());
+    parent_page->InitPage(parent_page_container->GetPageId(),
+                          PageType::PAGE_TYPE_BPLUS_INTERNAL, INVALID_PAGE_ID);
+
+    auto child_page_container = buffer_manager->AllocateNewPage().value();
+    auto child_page =
+        reinterpret_cast<BplusTreeLeafPage*>(child_page_container->GetData());
+    child_page->InitPage(child_page_container->GetPageId(),
+                         PageType::PAGE_TYPE_BPLUS_LEAF, INVALID_PAGE_ID);
+
+    parent_page->children_[0] = child_page->GetPageId();
+    for (int idx = 0; idx < BPLUS_LEAF_KEY_VALUE_SIZE; idx++) {
+        std::string key = "dummy_key_" + std::to_string(idx);
+        std::string value = "dummy_value_" + std::to_string(idx);
+
+        child_page->data_[idx].key.SetStringData(key);
+        child_page->data_[idx].value.SetStringData(value);
+    }
+
+    uint32_t split_index = 1;
+    auto median_idx = BPLUS_LEAF_KEY_VALUE_SIZE / 2 - 1;
+
+    auto statusOrNewChildPageId = bplus_tree->SplitChild(
+        parent_page_container, split_index, child_page_container);
+    EXPECT_TRUE(statusOrNewChildPageId.ok());
+    auto second_child_page_id = statusOrNewChildPageId.value();
+
+    EXPECT_EQ(parent_page->GetCount(), 1);
+    EXPECT_EQ(child_page->GetCount(), BPLUS_LEAF_KEY_VALUE_SIZE / 2);
+
+    EXPECT_EQ(parent_page->keys_[split_index].GetStringData(),
+              child_page->data_[median_idx].key.GetStringData());
+    EXPECT_EQ(parent_page->children_[split_index - 1],
+              child_page->GetPageId());  // verification that it doesn't
+                                         // overwrite this accidently
+    EXPECT_EQ(parent_page->children_[split_index], second_child_page_id);
+
+    auto second_child_page_container =
+        buffer_manager->GetPageWithId(second_child_page_id).value();
+    auto second_child_page = reinterpret_cast<BplusTreeLeafPage*>(
+        second_child_page_container->GetData());
+    EXPECT_EQ(second_child_page->GetCount(), BPLUS_LEAF_KEY_VALUE_SIZE / 2);
+
+    for (int idx = BPLUS_LEAF_KEY_VALUE_SIZE / 2;
+         idx < BPLUS_LEAF_KEY_VALUE_SIZE; idx++) {
+        EXPECT_EQ(child_page->data_[idx].key.GetStringData(),
+                  second_child_page->data_[idx - BPLUS_LEAF_KEY_VALUE_SIZE / 2]
+                      .key.GetStringData());
+
+        EXPECT_EQ(child_page->data_[idx].value.GetStringData(),
+                  second_child_page->data_[idx - BPLUS_LEAF_KEY_VALUE_SIZE / 2]
+                      .value.GetStringData());
+    }
+
+    EXPECT_EQ(child_page->GetParentPageId(), parent_page->GetPageId());
+    EXPECT_EQ(second_child_page->GetParentPageId(), parent_page->GetPageId());
 }
 
 }  // namespace graphchaindb

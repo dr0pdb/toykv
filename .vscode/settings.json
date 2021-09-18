@@ -76,7 +76,8 @@
         "typeinfo": "cpp",
         "valarray": "cpp",
         "codecvt": "cpp",
-        "*.inc": "cpp"
+        "*.inc": "cpp",
+        "shared_mutex": "cpp"
     },
     "testMate.cpp.test.advancedExecutables": [
         {
