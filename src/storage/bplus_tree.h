@@ -46,6 +46,10 @@ class BplusTree {
     absl::StatusOr<absl::string_view> Get(const ReadOptions& options,
                                           absl::string_view key);
 
+    // Print the tree for debugging purposes
+    // Only for Debugging. Doesn't lock and handle errors.
+    void PrintTree();
+
    private:
     FRIEND_TEST(BplusTreeTest, SplitChildLeafSucceeds);
 
@@ -55,25 +59,28 @@ class BplusTree {
                                absl::optional<absl::string_view> value,
                                Page* page);
 
-    // Split the given child page into two pages and make it the child of the
-    // parent page at the given index (0 based)
+    // Split the given child page into two pages. The index (0 based) denotes
+    // where the child page is in the parents children_ array
     //
     // Returns the newly created child page id
     //
     // IMPORTANT: Doesn't unpin the parent_page and child_page
     // ASSUMES: Exclusive locks are held on the parent and child page by
     // the caller
-    absl::StatusOr<page_id_t> SplitChild(Page* parent_page, uint32_t index,
+    absl::StatusOr<page_id_t> SplitChild(Page* parent_page, int32_t index,
                                          Page* child_page);
 
+    // ASSUMES: Shared lock is held on the page container
     absl::StatusOr<absl::string_view> GetFromPage(absl::string_view key,
                                                   Page* page_container);
 
-    // ASSUMES: Read/Exclusive locks are held on the parent and child page by
-    // the caller
+    // ASSUMES: No locks are held on the page
     bool IsPageFull(Page* page);
 
     absl::Status UpdateRoot(page_id_t new_root_id);
+
+    // Only for Debugging. Doesn't lock and handle errors.
+    void PrintNode(page_id_t page_id, std::string indentation = "");
 
     KeyComparator* comp_;
     BufferManager* buffer_manager_;

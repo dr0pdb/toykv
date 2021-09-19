@@ -111,7 +111,7 @@ absl::Status BplusTree::Insert(const WriteOptions& options,
         new_root_page->children_[0] = root_page_id_;
 
         auto split_status =
-            SplitChild(new_root_page_container, 1, root_page_container);
+            SplitChild(new_root_page_container, 0, root_page_container);
         if (!split_status.ok()) {
             LOG(ERROR) << "BplusTree::Insert: creating new root page failed";
 
@@ -129,6 +129,9 @@ absl::Status BplusTree::Insert(const WriteOptions& options,
             return s;
         }
 
+        buffer_manager_->UnpinPage(root_page_container, /* is_dirty */ true);
+        root_page_container->ReleaseExclusiveLock();
+
         s = InsertNonFull(key, value, new_root_page_container);
 
         buffer_manager_->UnpinPage(new_root_page_container,
@@ -137,10 +140,10 @@ absl::Status BplusTree::Insert(const WriteOptions& options,
     } else {
         LOG(INFO) << "BplusTree::Insert: root page is non-full";
         s = InsertNonFull(key, value, root_page_container);
-    }
 
-    buffer_manager_->UnpinPage(root_page_container, /* is_dirty */ true);
-    root_page_container->ReleaseExclusiveLock();
+        buffer_manager_->UnpinPage(root_page_container, /* is_dirty */ true);
+        root_page_container->ReleaseExclusiveLock();
+    }
 
     return s;
 }
@@ -163,15 +166,26 @@ absl::Status BplusTree::InsertNonFull(absl::string_view key,
         auto leaf_page =
             reinterpret_cast<BplusTreeLeafPage*>(page_container->GetData());
 
-        // find space for the new key value pair
-        auto insert_index = leaf_page->count_;
-        for (auto idx = std::max((int32_t)0, (int32_t)leaf_page->count_ - 1);
-             idx >= 0 &&
-             comp_->Compare(key, leaf_page->data_[idx].key.GetStringData()) ==
-                 -1;
-             idx--) {
-            leaf_page->data_[idx + 1] = leaf_page->data_[idx];
-            insert_index--;
+        int32_t insert_index = 0;
+        bool duplicate = false;
+        while (insert_index < leaf_page->count_) {
+            int comp = comp_->Compare(
+                key, leaf_page->data_[insert_index].key.GetStringData());
+            if (comp == 0) {
+                duplicate = true;
+                break;
+            } else if (comp == -1) {
+                break;
+            }
+
+            insert_index++;
+        }
+
+        if (!duplicate) {
+            for (int32_t idx = std::max(leaf_page->count_ - 1, 0);
+                 idx >= insert_index; idx--) {
+                leaf_page->data_[idx + 1] = leaf_page->data_[idx];
+            }
         }
 
         LOG(INFO) << "BplusTree::InsertNonFull: inserting at index: "
@@ -184,21 +198,22 @@ absl::Status BplusTree::InsertNonFull(absl::string_view key,
             leaf_page->data_[insert_index].value.EraseStringData();
         }
 
-        leaf_page->count_++;
+        if (!duplicate) {
+            leaf_page->count_++;
+        }
+
     } else if (page_type == PageType::PAGE_TYPE_BPLUS_INTERNAL) {
         LOG(INFO) << "BplusTree::InsertNonFull: an internal node";
 
         auto internal_page =
             reinterpret_cast<BplusTreeInternalPage*>(page_container->GetData());
 
-        int32_t insert_index = internal_page->count_;
-        for (insert_index = (int32_t)internal_page->count_ - 1;
-             insert_index >= 0 &&
-             comp_->Compare(
-                 key, internal_page->keys_[insert_index].GetStringData()) == -1;
-             insert_index--) {
+        int32_t insert_index = 0;
+        for (; insert_index < internal_page->count_ &&
+               comp_->Compare(
+                   key, internal_page->keys_[insert_index].GetStringData()) > 0;
+             insert_index++) {
         }
-        insert_index++;
 
         LOG(INFO)
             << "BplusTree::InsertNonFull: insert index in the internal node is "
@@ -230,7 +245,7 @@ absl::Status BplusTree::InsertNonFull(absl::string_view key,
 
             if (comp_->Compare(
                     key, internal_page->keys_[insert_index].GetStringData()) >
-                1) {
+                0) {
                 insert_index++;
 
                 buffer_manager_->UnpinPage(child_page_container,
@@ -282,7 +297,7 @@ bool BplusTree::IsPageFull(Page* page_container) {
 }
 
 absl::StatusOr<page_id_t> BplusTree::SplitChild(Page* parent_page_container,
-                                                uint32_t index,
+                                                int32_t index,
                                                 Page* child_page_container) {
     CHECK_NOTNULL(parent_page_container);
     CHECK_NOTNULL(child_page_container);
@@ -343,7 +358,7 @@ absl::StatusOr<page_id_t> BplusTree::SplitChild(Page* parent_page_container,
              idx--) {
             parent_page->children_[idx + 1] = parent_page->children_[idx];
         }
-        parent_page->children_[index] =
+        parent_page->children_[index + 1] =
             second_child_page_container->GetPageId();
 
         // add median key of child_page to parent page. Since the total key
@@ -469,7 +484,7 @@ absl::StatusOr<absl::string_view> BplusTree::GetFromPage(absl::string_view key,
         auto leaf_page =
             reinterpret_cast<BplusTreeLeafPage*>(page_container->GetData());
 
-        for (auto idx = (uint32_t)0; idx < leaf_page->count_; idx++) {
+        for (auto idx = 0; idx < leaf_page->count_; idx++) {
             LOG(INFO) << "BplusTree::GetFromPage: query key: " << key
                       << ". stored key: "
                       << leaf_page->data_[idx].key.GetStringData();
@@ -489,7 +504,7 @@ absl::StatusOr<absl::string_view> BplusTree::GetFromPage(absl::string_view key,
 
     auto internal_page =
         reinterpret_cast<BplusTreeInternalPage*>(page_container->GetData());
-    auto idx = (uint32_t)0;
+    auto idx = 0;
     while (idx < internal_page->count_ &&
            comp_->Compare(key, internal_page->keys_[idx].GetStringData()) > 0) {
         idx++;
@@ -529,6 +544,62 @@ absl::Status BplusTree::UpdateRoot(page_id_t new_root_id) {
     // TODO: add log entry
 
     return absl::OkStatus();
+}
+
+void BplusTree::PrintTree() { PrintNode(root_page_id_); }
+
+void BplusTree::PrintNode(page_id_t page_id, std::string indentation) {
+    auto page_container = buffer_manager_->GetPageWithId(page_id).value();
+    auto page_type = reinterpret_cast<BplusTreePage*>(page_container->GetData())
+                         ->GetPageType();
+
+    if (page_type == PageType::PAGE_TYPE_BPLUS_LEAF) {
+        auto leaf_page =
+            reinterpret_cast<BplusTreeLeafPage*>(page_container->GetData());
+
+        std::cout << indentation << "page_id: " << page_container->GetPageId()
+                  << " page type: leaf"
+                  << " parent_page_id: " << leaf_page->GetParentPageId()
+                  << " count: " << leaf_page->GetCount()
+                  << " next_page_id: " << leaf_page->GetNextPageId()
+                  << std::endl;
+
+        std::cout << indentation;
+        for (int32_t idx = 0; idx < leaf_page->count_; idx++) {
+            std::cout << "key: " << leaf_page->data_[idx].key.GetStringData()
+                      << " value: "
+                      << leaf_page->data_[idx].value.GetStringData()
+                      << " ------ ";
+        }
+        std::cout << std::endl;
+    } else {
+        auto internal_page =
+            reinterpret_cast<BplusTreeInternalPage*>(page_container->GetData());
+
+        std::cout << indentation << "page_id: " << page_container->GetPageId()
+                  << ", page type: internal"
+                  << ", parent_page_id: " << internal_page->GetParentPageId()
+                  << ", count: " << internal_page->GetCount() << std::endl;
+
+        std::string new_indentation = indentation + "------";
+
+        for (int32_t idx = 0; idx < internal_page->count_; idx++) {
+            std::cout << new_indentation
+                      << "page_id: " << internal_page->children_[idx]
+                      << " key: " << internal_page->keys_[idx].GetStringData()
+                      << std::endl;
+
+            PrintNode(internal_page->children_[idx], new_indentation);
+            std::cout << std::endl;
+        }
+
+        std::cout << new_indentation << "page_id: "
+                  << internal_page->children_[internal_page->count_]
+                  << " key: no key. last child of internal value" << std::endl;
+        PrintNode(internal_page->children_[internal_page->count_],
+                  new_indentation);
+        std::cout << std::endl;
+    }
 }
 
 }  // namespace graphchaindb

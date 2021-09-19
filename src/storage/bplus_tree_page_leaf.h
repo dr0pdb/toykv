@@ -55,7 +55,9 @@ class BplusTreeLeafPage : public BplusTreePage {
     }
 
     // set the next page id
-    void SetNextPage(page_id_t next_page_id);
+    void SetNextPageId(page_id_t next_page_id);
+
+    page_id_t GetNextPageId() { return next_page_id_; }
 
     // Returns if the page is full
     bool IsFull() {

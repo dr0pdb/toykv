@@ -22,7 +22,10 @@ class DefaultKeyComparator : public KeyComparator {
     // -1 if first < second
     // 0 if first == second
     // 1 if first > second
-    int Compare(const absl::string_view a, const absl::string_view b) override;
+    int Compare(const absl::string_view a, const absl::string_view b) override {
+        auto comp = a.compare(b);
+        return (comp == 0) ? comp : ((comp < 0) ? -1 : 1);
+    }
 };
 
 }  // namespace graphchaindb

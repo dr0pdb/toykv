@@ -98,8 +98,6 @@ absl::StatusOr<Page*> BufferManager::AllocateNewPage() {
 }
 
 void BufferManager::UnpinPage(Page* page, bool is_dirty) {
-    ASSERT_EXCLUSIVE_LOCK(page->mu_);
-
     LOG(INFO) << "BufferManager::UnpinPage: Start with page_id: "
               << page->GetPageId() << " is_dirty: " << is_dirty;
 
@@ -107,6 +105,7 @@ void BufferManager::UnpinPage(Page* page, bool is_dirty) {
         page->is_page_dirty_ = true;
     }
 
+    // TODO: what if only read lock is held. Is this safe?
     page->pin_count_--;
     CHECK_GE(page->pin_count_, 0);
 }

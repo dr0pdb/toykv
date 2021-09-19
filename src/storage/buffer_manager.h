@@ -39,7 +39,7 @@ class BufferManager {
     absl::StatusOr<Page*> AllocateNewPage();
 
     // Unpin the given page
-    // ASSUMES: Exclusive lock on the page is held by the caller
+    // ASSUMES: Appropriate lock on the page is held by the caller
     void UnpinPage(Page* page, bool is_dirty = false);
 
    private:

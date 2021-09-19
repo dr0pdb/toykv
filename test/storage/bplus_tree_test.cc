@@ -4,7 +4,9 @@
 #include <gtest/gtest.h>
 
 #include <filesystem>
+#include <map>
 #include <memory>
+#include <random>
 
 #include "absl/strings/string_view.h"
 #include "src/common/config.h"
@@ -74,19 +76,24 @@ TEST_F(BplusTreeTest, SingleInsertGetSucceeds) {
     EXPECT_EQ(TEST_VALUE_1, value_or_status->data());
 }
 
-TEST_F(BplusTreeTest, MultipleInsertSucceeds) {
+TEST_F(BplusTreeTest, SingleItemMultipleInsertGetSucceeds) {
     EXPECT_TRUE(Init().ok());
-    auto count = 40;
+    int count = 100;
 
     for (auto i = 0; i < count; i++) {
-        std::string key = "dummy_key_" + std::to_string(i);
         std::string value = "dummy_value_" + std::to_string(i);
 
-        EXPECT_TRUE(bplus_tree->Insert(dummy_write_options, key, value).ok());
+        EXPECT_TRUE(
+            bplus_tree->Insert(dummy_write_options, TEST_KEY_1, value).ok());
     }
+
+    auto value_or_status = bplus_tree->Get(dummy_read_options, TEST_KEY_1);
+    EXPECT_TRUE(value_or_status.ok());
+    EXPECT_EQ("dummy_value_" + std::to_string(count - 1),
+              value_or_status->data());
 }
 
-TEST_F(BplusTreeTest, Sequential100InsertGetSucceeds) {
+TEST_F(BplusTreeTest, MultipleSequentialInsertSucceeds) {
     EXPECT_TRUE(Init().ok());
     auto count = 100;
 
@@ -97,7 +104,54 @@ TEST_F(BplusTreeTest, Sequential100InsertGetSucceeds) {
         EXPECT_TRUE(bplus_tree->Insert(dummy_write_options, key, value).ok());
     }
 
+    bplus_tree->PrintTree();
+}
+
+TEST_F(BplusTreeTest, MultipleRandomInsertSucceeds) {
+    EXPECT_TRUE(Init().ok());
+    auto count = 60;
+    std::map<std::string, std::string> kv;
+
+    std::random_device rd;
+    std::mt19937 mt(rd());
+    std::uniform_int_distribution<int> dist(10, 99);
+
     for (auto i = 0; i < count; i++) {
+        std::string suffix = std::to_string(dist(mt));
+
+        std::string key = "dummy_key_" + suffix;
+        std::string value = "dummy_value_" + suffix;
+
+        kv[key] = value;
+
+        EXPECT_TRUE(bplus_tree->Insert(dummy_write_options, key, value).ok());
+    }
+
+    for (auto kvp : kv) {
+        auto value_or_status = bplus_tree->Get(dummy_read_options, kvp.first);
+        EXPECT_TRUE(value_or_status.ok());
+        EXPECT_EQ(kvp.second, value_or_status->data());
+    }
+
+    bplus_tree->PrintTree();
+}
+
+TEST_F(BplusTreeTest, SequentialAllDoubleDigitsInsertGetSucceeds) {
+    EXPECT_TRUE(Init().ok());
+    auto count = 100;
+
+    for (auto i = 10; i < count; i++) {
+        std::string key = "dummy_key_" + std::to_string(i);
+        std::string value = "dummy_value_" + std::to_string(i);
+
+        EXPECT_TRUE(bplus_tree->Insert(dummy_write_options, key, value).ok());
+
+        bplus_tree->PrintTree();
+    }
+
+    bplus_tree->PrintTree();
+
+    for (auto i = 10; i < count; i++) {
         std::string key = "dummy_key_" + std::to_string(i);
         std::string value = "dummy_value_" + std::to_string(i);
 
@@ -132,7 +186,7 @@ TEST_F(BplusTreeTest, SplitChildLeafSucceeds) {
         child_page->data_[idx].value.SetStringData(value);
     }
 
-    uint32_t split_index = 1;
+    uint32_t split_index = 0;
     auto median_idx = BPLUS_LEAF_KEY_VALUE_SIZE / 2 - 1;
 
     auto statusOrNewChildPageId = bplus_tree->SplitChild(
@@ -145,10 +199,10 @@ TEST_F(BplusTreeTest, SplitChildLeafSucceeds) {
 
     EXPECT_EQ(parent_page->keys_[split_index].GetStringData(),
               child_page->data_[median_idx].key.GetStringData());
-    EXPECT_EQ(parent_page->children_[split_index - 1],
+    EXPECT_EQ(parent_page->children_[split_index],
               child_page->GetPageId());  // verification that it doesn't
                                          // overwrite this accidently
-    EXPECT_EQ(parent_page->children_[split_index], second_child_page_id);
+    EXPECT_EQ(parent_page->children_[split_index + 1], second_child_page_id);
 
     auto second_child_page_container =
         buffer_manager->GetPageWithId(second_child_page_id).value();
