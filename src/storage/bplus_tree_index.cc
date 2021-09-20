@@ -27,13 +27,15 @@ absl::Status BplusTreeIndex::Init(page_id_t root_page_id) {
 
 absl::Status BplusTreeIndex::Set(const WriteOptions& options,
                                  absl::string_view key,
-                                 absl::string_view value) {
-    return absl::OkStatus();
+                                 absl::optional<absl::string_view> value) {
+    LOG(INFO) << "BplusTreeIndex::Insert: start";
+    return bplus_tree_->Insert(options, key, value);
 }
 
 absl::StatusOr<std::string> BplusTreeIndex::Get(const ReadOptions& options,
                                                 absl::string_view key) {
-    return absl::OkStatus();
+    LOG(INFO) << "BplusTreeIndex::Get: start";
+    return bplus_tree_->Get(options, key);
 }
 
 }  // namespace graphchaindb

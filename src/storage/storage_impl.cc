@@ -41,8 +41,11 @@ absl::Status StorageImpl::Set(const WriteOptions& options,
         return s;
     }
 
-    // update in the index
-
+    s = index_->Set(options, key, value);
+    if (!s.ok()) {
+        LOG(ERROR) << "StorageImpl::Set: error in set operation";
+        return s;
+    }
     return s;
 }
 
@@ -67,16 +70,18 @@ absl::Status StorageImpl::Delete(const WriteOptions& options,
         return s;
     }
 
-    // update in the index
+    s = index_->Set(options, key, absl::nullopt);
+    if (!s.ok()) {
+        LOG(ERROR) << "StorageImpl::Delete: error in delete operation";
+        return s;
+    }
 
     return s;
 }
 
-absl::StatusOr<absl::string_view> StorageImpl::Get(const ReadOptions& options,
-                                                   absl::string_view key) {
-    // get from index
-
-    return "hello";
+absl::StatusOr<std::string> StorageImpl::Get(const ReadOptions& options,
+                                             absl::string_view key) {
+    return index_->Get(options, key);
 }
 
 absl::Status StorageImpl::Recover(const Options& options) {

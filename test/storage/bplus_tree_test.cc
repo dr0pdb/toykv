@@ -107,14 +107,14 @@ TEST_F(BplusTreeTest, MultipleSequentialInsertSucceeds) {
     bplus_tree->PrintTree();
 }
 
-TEST_F(BplusTreeTest, MultipleRandomInsertSucceeds) {
+TEST_F(BplusTreeTest, MultipleRandomInsertGetSucceeds) {
     EXPECT_TRUE(Init().ok());
-    auto count = 60;
+    auto count = 1000;
     std::map<std::string, std::string> kv;
 
     std::random_device rd;
     std::mt19937 mt(rd());
-    std::uniform_int_distribution<int> dist(10, 99);
+    std::uniform_int_distribution<int> dist(100, 999);
 
     for (auto i = 0; i < count; i++) {
         std::string suffix = std::to_string(dist(mt));
