@@ -81,8 +81,32 @@ class BplusTree {
     absl::StatusOr<absl::string_view> GetFromPage(absl::string_view key,
                                                   Page* page_container);
 
-    // ASSUMES: No locks are held on the page
+    // The child page is half full. Borrow entries from siblings or merge with
+    // them. The index (0 based) denotes where the child page is in the parents
+    // children_ array
+    //
+    // IMPORTANT: Doesn't unpin the parent_page and child_page
+    // ASSUMES: Exclusive locks are held on the parent and child page by
+    // the caller
+    absl::Status BorrowOrMergeChild(Page* parent_page, int32_t index,
+                                    Page* child_page);
+
+    // Merge the left and right child into one and remove the corresponding key
+    // in the parent. The index (0 based) denotes where the child page is in the
+    // parents children_ array. is_leaf indicates if the child nodes are at the
+    // leaf
+    //
+    // IMPORTANT: Doesn't unpin the parent_page and child pages
+    // ASSUMES: Exclusive locks are held on the parent and child pages by
+    // the caller
+    absl::Status MergeChild(Page* parent_page, int32_t index, Page* left_child,
+                            Page* right_child, bool is_leaf);
+
+    // ASSUMES: locks are held on the page
     bool IsPageFull(Page* page);
+
+    // ASSUMES: locks are held on the page
+    bool IsPageLessThanHalfFull(Page* page);
 
     absl::Status UpdateRoot(page_id_t new_root_id);
 

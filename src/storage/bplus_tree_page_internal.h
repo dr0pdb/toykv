@@ -49,6 +49,12 @@ class BplusTreeInternalPage : public BplusTreePage {
         return BplusTreePage::GetCount() + 1 == BPLUS_INTERNAL_KEY_PAGE_ID_SIZE;
     }
 
+    // Returns if the page is less than half full
+    bool IsLessThanHalfFull() {
+        // TODO: implement
+        return BplusTreePage::GetCount() + 1 == BPLUS_INTERNAL_KEY_PAGE_ID_SIZE;
+    }
+
    private:
     FRIEND_TEST(BplusTreeTest, SplitChildLeafSucceeds);
 

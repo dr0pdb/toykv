@@ -549,7 +549,16 @@ absl::Status BplusTree::DeleteFromPage(absl::string_view key,
             return deletion_status;
         }
 
-        // TODO: possibly merge two children?
+        if (IsPageLessThanHalfFull(child_page_container)) {
+            auto borror_or_merge_status = BorrowOrMergeChild(
+                page_container, deletion_index, child_page_container);
+            if (!borror_or_merge_status.ok()) {
+                LOG(ERROR)
+                    << "BplusTree::DeleteFromPage: error while borrow_or_merge "
+                       "operation";
+                return borror_or_merge_status;
+            }
+        }
 
         buffer_manager_->UnpinPage(child_page_container, /* is_dirty */ true);
         child_page_container->ReleaseExclusiveLock();
@@ -560,6 +569,75 @@ absl::Status BplusTree::DeleteFromPage(absl::string_view key,
     }
 
     return absl::OkStatus();
+}
+
+absl::Status BplusTree::BorrowOrMergeChild(Page* parent_page_container,
+                                           int32_t index,
+                                           Page* child_page_container) {
+    CHECK_NOTNULL(parent_page_container);
+    CHECK_NOTNULL(child_page_container);
+
+    LOG(INFO) << "BplusTree::BorrowOrMergeChild: Init with parent page id: "
+              << parent_page_container->GetPageId() << " index: " << index
+              << " and child page id: " << child_page_container->GetPageId();
+
+    auto parent_page = reinterpret_cast<BplusTreeInternalPage*>(
+        parent_page_container->GetData());
+
+    bool is_leaf =
+        reinterpret_cast<BplusTreePage*>(child_page_container->GetData())
+            ->GetPageType() == PageType::PAGE_TYPE_BPLUS_LEAF;
+
+    Page* sibling_page_container = nullptr;
+    if (index > 0) {
+        auto status_or_left_sibling_page_container =
+            buffer_manager_->GetPageWithId(parent_page->children_[index - 1]);
+        if (!status_or_left_sibling_page_container.ok()) {
+            return status_or_left_sibling_page_container.status();
+        }
+
+        sibling_page_container = status_or_left_sibling_page_container.value();
+    } else {
+        auto status_or_right_sibling_page_container =
+            buffer_manager_->GetPageWithId(parent_page->children_[index + 1]);
+        if (!status_or_right_sibling_page_container.ok()) {
+            return status_or_right_sibling_page_container.status();
+        }
+
+        sibling_page_container = status_or_right_sibling_page_container.value();
+    }
+    sibling_page_container->AquireExclusiveLock();
+
+    // if sibling is also less than half full, time to merge
+    // otherwise borrow
+    bool should_merge = IsPageLessThanHalfFull(sibling_page_container);
+    if (should_merge) {
+    } else {
+    }
+
+    buffer_manager_->UnpinPage(sibling_page_container, /* is_dirty */ true);
+    sibling_page_container->ReleaseExclusiveLock();
+    return absl::OkStatus();
+}
+
+absl::Status BplusTree::MergeChild(Page* parent_page, int32_t index,
+                                   Page* left_child, Page* right_child,
+                                   bool is_leaf) {
+    return absl::OkStatus();
+}
+
+bool BplusTree::IsPageLessThanHalfFull(Page* page_container) {
+    auto bplus_tree_page =
+        reinterpret_cast<BplusTreePage*>(page_container->GetData());
+    auto page_type = bplus_tree_page->GetPageType();
+
+    if (page_type == PageType::PAGE_TYPE_BPLUS_INTERNAL) {
+        return reinterpret_cast<BplusTreeInternalPage*>(
+                   page_container->GetData())
+            ->IsLessThanHalfFull();
+    }
+    return reinterpret_cast<BplusTreeLeafPage*>(page_container->GetData())
+        ->IsLessThanHalfFull();
 }
 
 absl::StatusOr<absl::string_view> BplusTree::Get(const ReadOptions& options,

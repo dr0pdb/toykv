@@ -64,6 +64,12 @@ class BplusTreeLeafPage : public BplusTreePage {
         return BplusTreePage::GetCount() == BPLUS_LEAF_KEY_VALUE_SIZE;
     }
 
+    // Returns if the page is less than half full
+    bool IsLessThanHalfFull() {
+        // TODO: implement
+        return BplusTreePage::GetCount() == BPLUS_LEAF_KEY_VALUE_SIZE;
+    }
+
    private:
     FRIEND_TEST(BplusTreeTest, SplitChildLeafSucceeds);
 
