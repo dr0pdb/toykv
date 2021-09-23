@@ -65,7 +65,7 @@ class BplusTreeTest : public ::testing::Test {
 
 TEST_F(BplusTreeTest, InitSucceeds) { EXPECT_TRUE(Init().ok()); }
 
-TEST_F(BplusTreeTest, SingleInsertGetSucceeds) {
+TEST_F(BplusTreeTest, SingleInsertGetDeleteSucceeds) {
     EXPECT_TRUE(Init().ok());
 
     EXPECT_TRUE(
@@ -74,9 +74,15 @@ TEST_F(BplusTreeTest, SingleInsertGetSucceeds) {
     auto value_or_status = bplus_tree->Get(dummy_read_options, TEST_KEY_1);
     EXPECT_TRUE(value_or_status.ok());
     EXPECT_EQ(TEST_VALUE_1, value_or_status->data());
+
+    auto delete_status = bplus_tree->Delete(dummy_write_options, TEST_KEY_1);
+    EXPECT_TRUE(delete_status.ok());
+
+    value_or_status = bplus_tree->Get(dummy_read_options, TEST_KEY_1);
+    EXPECT_FALSE(value_or_status.ok());
 }
 
-TEST_F(BplusTreeTest, SingleItemMultipleInsertGetSucceeds) {
+TEST_F(BplusTreeTest, SingleItemMultipleInsertGetDeleteSucceeds) {
     EXPECT_TRUE(Init().ok());
     int count = 100;
 
@@ -91,9 +97,15 @@ TEST_F(BplusTreeTest, SingleItemMultipleInsertGetSucceeds) {
     EXPECT_TRUE(value_or_status.ok());
     EXPECT_EQ("dummy_value_" + std::to_string(count - 1),
               value_or_status->data());
+
+    auto delete_status = bplus_tree->Delete(dummy_write_options, TEST_KEY_1);
+    EXPECT_TRUE(delete_status.ok());
+
+    value_or_status = bplus_tree->Get(dummy_read_options, TEST_KEY_1);
+    EXPECT_FALSE(value_or_status.ok());
 }
 
-TEST_F(BplusTreeTest, MultipleSequentialInsertSucceeds) {
+TEST_F(BplusTreeTest, MultipleSequentialInsertDeleteSucceeds) {
     EXPECT_TRUE(Init().ok());
     auto count = 100;
 
@@ -105,9 +117,19 @@ TEST_F(BplusTreeTest, MultipleSequentialInsertSucceeds) {
     }
 
     bplus_tree->PrintTree();
+
+    for (auto i = 0; i < count; i++) {
+        std::string key = "dummy_key_" + std::to_string(i);
+        EXPECT_TRUE(bplus_tree->Delete(dummy_write_options, key).ok());
+
+        auto value_or_status = bplus_tree->Get(dummy_read_options, key);
+        EXPECT_FALSE(value_or_status.ok());
+    }
+
+    bplus_tree->PrintTree();
 }
 
-TEST_F(BplusTreeTest, MultipleRandomInsertGetSucceeds) {
+TEST_F(BplusTreeTest, MultipleRandomInsertGetDeleteSucceeds) {
     EXPECT_TRUE(Init().ok());
     auto count = 1000;
     std::map<std::string, std::string> kv;
@@ -134,9 +156,16 @@ TEST_F(BplusTreeTest, MultipleRandomInsertGetSucceeds) {
     }
 
     bplus_tree->PrintTree();
+
+    for (auto kvp : kv) {
+        auto delete_status = bplus_tree->Delete(dummy_write_options, kvp.first);
+        EXPECT_TRUE(delete_status.ok());
+    }
+
+    bplus_tree->PrintTree();
 }
 
-TEST_F(BplusTreeTest, SequentialAllDoubleDigitsInsertGetSucceeds) {
+TEST_F(BplusTreeTest, SequentialAllDoubleDigitsInsertGetDeleteSucceeds) {
     EXPECT_TRUE(Init().ok());
     auto count = 100;
 
@@ -159,6 +188,16 @@ TEST_F(BplusTreeTest, SequentialAllDoubleDigitsInsertGetSucceeds) {
         EXPECT_TRUE(value_or_status.ok());
         EXPECT_EQ(value, value_or_status->data());
     }
+
+    for (auto i = 10; i < count; i++) {
+        std::string key = "dummy_key_" + std::to_string(i);
+        std::string value = "dummy_value_" + std::to_string(i);
+
+        auto delete_or_status = bplus_tree->Delete(dummy_write_options, key);
+        EXPECT_TRUE(delete_or_status.ok());
+    }
+
+    bplus_tree->PrintTree();
 }
 
 TEST_F(BplusTreeTest, SplitChildLeafSucceeds) {
@@ -224,5 +263,7 @@ TEST_F(BplusTreeTest, SplitChildLeafSucceeds) {
     EXPECT_EQ(child_page->GetParentPageId(), parent_page->GetPageId());
     EXPECT_EQ(second_child_page->GetParentPageId(), parent_page->GetPageId());
 }
+
+TEST_F(BplusTreeTest, SplitChildInternalSucceeds) { EXPECT_TRUE(Init().ok()); }
 
 }  // namespace graphchaindb

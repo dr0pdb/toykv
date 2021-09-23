@@ -27,15 +27,27 @@ absl::Status BplusTreeIndex::Init(page_id_t root_page_id) {
 
 absl::Status BplusTreeIndex::Set(const WriteOptions& options,
                                  absl::string_view key,
-                                 absl::optional<absl::string_view> value) {
+                                 absl::string_view value) {
     LOG(INFO) << "BplusTreeIndex::Insert: start";
     return bplus_tree_->Insert(options, key, value);
+}
+
+absl::Status BplusTreeIndex::Delete(const WriteOptions& options,
+                                    absl::string_view key) {
+    return bplus_tree_->Delete(options, key);
 }
 
 absl::StatusOr<std::string> BplusTreeIndex::Get(const ReadOptions& options,
                                                 absl::string_view key) {
     LOG(INFO) << "BplusTreeIndex::Get: start";
-    return bplus_tree_->Get(options, key);
+    auto status_or_value = bplus_tree_->Get(options, key);
+    if (!status_or_value.ok()) {
+        return status_or_value.status();
+    }
+
+    std::string value{status_or_value.value().data(),
+                      status_or_value.value().length()};
+    return std::move(value);
 }
 
 }  // namespace graphchaindb

@@ -70,7 +70,7 @@ absl::Status StorageImpl::Delete(const WriteOptions& options,
         return s;
     }
 
-    s = index_->Set(options, key, absl::nullopt);
+    s = index_->Delete(options, key);
     if (!s.ok()) {
         LOG(ERROR) << "StorageImpl::Delete: error in delete operation";
         return s;

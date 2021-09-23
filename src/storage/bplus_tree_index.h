@@ -33,7 +33,10 @@ class BplusTreeIndex {
     // Sets the given value corresponding to the given key.
     // overwrites the existing value if it exists.
     absl::Status Set(const WriteOptions& options, absl::string_view key,
-                     absl::optional<absl::string_view> value);
+                     absl::string_view value);
+
+    // Deletes the given key value pair from the index.
+    absl::Status Delete(const WriteOptions& options, absl::string_view key);
 
     // Gets the latest value corresponding to the given key.
     absl::StatusOr<std::string> Get(const ReadOptions& options,

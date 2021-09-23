@@ -35,12 +35,16 @@ class BplusTree {
     // TODO: take the root page id and return statusOr of pageid?
     absl::Status Init(page_id_t root_page_id = INVALID_PAGE_ID);
 
-    // Insert the given value corresponding to the given key. If the value is
-    // not provided, a tombstone value is written which indicates deletion.
+    // Insert the given value corresponding to the given key.
     //
     // overwrites the existing value if it exists.
     absl::Status Insert(const WriteOptions& options, absl::string_view key,
-                        absl::optional<absl::string_view> value);
+                        absl::string_view value);
+
+    // Delete the given key and it's corresponding value.
+    //
+    // Returns NotFoundError if the key is not found.
+    absl::Status Delete(const WriteOptions& options, absl::string_view key);
 
     // Gets the latest value corresponding to the given key.
     absl::StatusOr<absl::string_view> Get(const ReadOptions& options,
@@ -55,8 +59,7 @@ class BplusTree {
 
     // IMPORTANT: Doesn't unpin the page passed to it
     // ASSUMES: Exclusive lock is held on the page
-    absl::Status InsertNonFull(absl::string_view key,
-                               absl::optional<absl::string_view> value,
+    absl::Status InsertNonFull(absl::string_view key, absl::string_view value,
                                Page* page);
 
     // Split the given child page into two pages. The index (0 based) denotes
@@ -69,6 +72,10 @@ class BplusTree {
     // the caller
     absl::StatusOr<page_id_t> SplitChild(Page* parent_page, int32_t index,
                                          Page* child_page);
+
+    // IMPORTANT: Doesn't unpin the page passed to it
+    // ASSUMES: Exclusive lock is held on the page
+    absl::Status DeleteFromPage(absl::string_view key, Page* page_container);
 
     // ASSUMES: Shared lock is held on the page container
     absl::StatusOr<absl::string_view> GetFromPage(absl::string_view key,

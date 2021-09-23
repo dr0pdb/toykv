@@ -9,6 +9,8 @@
 //
 // http://staff.ustc.edu.cn/~csli/graduate/algorithms/book6/chap19.htm
 //
+// Although we store key-value pairs only at leaf.
+//
 
 namespace graphchaindb {
 
@@ -61,14 +63,10 @@ absl::Status BplusTree::Init(page_id_t root_page_id) {
 }
 
 absl::Status BplusTree::Insert(const WriteOptions& options,
-                               absl::string_view key,
-                               absl::optional<absl::string_view> value) {
+                               absl::string_view key, absl::string_view value) {
     CHECK_NE(root_page_id_, INVALID_PAGE_ID);
     LOG(INFO) << "BplusTree::Insert: start";
-    LOG(INFO) << "key: " << key;
-    if (value.has_value()) {
-        LOG(INFO) << "value: " << value.value();
-    }
+    LOG(INFO) << "key: " << key << " value: " << value;
 
     auto status_or_root_page_container =
         buffer_manager_->GetPageWithId(root_page_id_);
@@ -149,7 +147,7 @@ absl::Status BplusTree::Insert(const WriteOptions& options,
 }
 
 absl::Status BplusTree::InsertNonFull(absl::string_view key,
-                                      absl::optional<absl::string_view> value,
+                                      absl::string_view value,
                                       Page* page_container) {
     CHECK_NOTNULL(page_container);
 
@@ -192,11 +190,7 @@ absl::Status BplusTree::InsertNonFull(absl::string_view key,
                   << insert_index;
 
         leaf_page->data_[insert_index].key.SetStringData(key);
-        if (value.has_value()) {
-            leaf_page->data_[insert_index].value.SetStringData(value.value());
-        } else {
-            leaf_page->data_[insert_index].value.EraseStringData();
-        }
+        leaf_page->data_[insert_index].value.SetStringData(value);
 
         if (!duplicate) {
             leaf_page->count_++;
@@ -444,6 +438,128 @@ absl::StatusOr<page_id_t> BplusTree::SplitChild(Page* parent_page_container,
     second_child_page_container->ReleaseExclusiveLock();
 
     return second_child_page_id;
+}
+
+absl::Status BplusTree::Delete(const WriteOptions& options,
+                               absl::string_view key) {
+    CHECK_NE(root_page_id_, INVALID_PAGE_ID);
+    LOG(INFO) << "BplusTree::Delete: Init";
+    LOG(INFO) << key;
+
+    auto status_or_root_page_container =
+        buffer_manager_->GetPageWithId(root_page_id_);
+    if (!status_or_root_page_container.ok()) {
+        LOG(ERROR) << "BplusTree::Delete: getting root page id failed";
+        return status_or_root_page_container.status();
+    }
+
+    auto root_page_container = status_or_root_page_container.value();
+    CHECK_NOTNULL(root_page_container);
+
+    root_page_container->AquireExclusiveLock();
+
+    auto deletion_status = DeleteFromPage(key, root_page_container);
+
+    buffer_manager_->UnpinPage(root_page_container, /* is_dirty */ true);
+    root_page_container->ReleaseExclusiveLock();
+    return deletion_status;
+}
+
+absl::Status BplusTree::DeleteFromPage(absl::string_view key,
+                                       Page* page_container) {
+    CHECK_NOTNULL(page_container);
+    LOG(INFO) << "BplusTree::DeleteFromPage: Init";
+    LOG(INFO) << key;
+
+    auto bplus_tree_page =
+        reinterpret_cast<BplusTreePage*>(page_container->GetData());
+    auto page_type = bplus_tree_page->GetPageType();
+    LOG(INFO) << "BplusTree::DeleteFromPage: start for page id: "
+              << bplus_tree_page->GetPageId()
+              << " and page_type: " << page_type;
+
+    if (page_type == PageType::PAGE_TYPE_BPLUS_LEAF) {
+        LOG(INFO) << "BplusTree::DeleteFromPage: reached the leaf page";
+
+        auto leaf_page =
+            reinterpret_cast<BplusTreeLeafPage*>(page_container->GetData());
+
+        int32_t deletion_index = 0;
+        bool exists = false;
+        while (deletion_index < leaf_page->count_) {
+            int comp = comp_->Compare(
+                key, leaf_page->data_[deletion_index].key.GetStringData());
+            if (comp == 0) {
+                exists = true;
+                break;
+            } else if (comp == -1) {
+                break;
+            }
+
+            deletion_index++;
+        }
+
+        if (!exists) {
+            LOG(ERROR) << "BplusTree::DeleteFromPage: key - " << key
+                       << " not found in the database";
+            return absl::NotFoundError("Key not found in the database");
+        }
+
+        LOG(INFO) << "BplusTree::DeleteFromPage: deleting from index: "
+                  << deletion_index;
+
+        for (int idx = deletion_index; idx < leaf_page->count_ - 1; idx++) {
+            leaf_page->data_[idx] = leaf_page->data_[idx + 1];
+        }
+        leaf_page->count_--;
+    } else if (page_type == PageType::PAGE_TYPE_BPLUS_INTERNAL) {
+        LOG(INFO) << "BplusTree::DeleteFromPage: an internal node";
+
+        auto internal_page =
+            reinterpret_cast<BplusTreeInternalPage*>(page_container->GetData());
+
+        int32_t deletion_index = 0;
+        for (;
+             deletion_index < internal_page->count_ &&
+             comp_->Compare(
+                 key, internal_page->keys_[deletion_index].GetStringData()) > 0;
+             deletion_index++) {
+        }
+
+        LOG(INFO)
+            << "BplusTree::DeleteFromPage: deletion index in the internal "
+               "node is "
+            << deletion_index;
+
+        auto child_page_id = internal_page->children_[deletion_index];
+        auto child_page_container_or_status =
+            buffer_manager_->GetPageWithId(child_page_id);
+        if (!child_page_container_or_status.ok()) {
+            LOG(ERROR)
+                << "BplusTree::DeleteFromPage: error while getting child "
+                   "page from buffer";
+            return child_page_container_or_status.status();
+        }
+
+        auto child_page_container = child_page_container_or_status.value();
+        child_page_container->AquireExclusiveLock();
+
+        auto deletion_status = DeleteFromPage(key, child_page_container);
+        if (!deletion_status.ok()) {
+            return deletion_status;
+        }
+
+        // TODO: possibly merge two children?
+
+        buffer_manager_->UnpinPage(child_page_container, /* is_dirty */ true);
+        child_page_container->ReleaseExclusiveLock();
+    } else {
+        LOG(ERROR) << "BplusTree::DeleteFromPage: unknown page type";
+        return absl::InternalError(
+            "BplusTree::DeleteFromPage: unknown page type");
+    }
+
+    return absl::OkStatus();
 }
 
 absl::StatusOr<absl::string_view> BplusTree::Get(const ReadOptions& options,

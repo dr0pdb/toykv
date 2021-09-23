@@ -39,8 +39,8 @@ class Storage {
                                 absl::string_view key) = 0;
 
     // Gets the latest value corresponding to the given key.
-    virtual absl::StatusOr<absl::string_view> Get(const ReadOptions& options,
-                                                  absl::string_view key) = 0;
+    virtual absl::StatusOr<std::string> Get(const ReadOptions& options,
+                                            absl::string_view key) = 0;
 };
 
 }  // namespace graphchaindb
