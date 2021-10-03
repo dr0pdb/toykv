@@ -32,8 +32,6 @@ class LogManagerTest : public ::testing::Test {
 TEST_F(LogManagerTest, PrepareAndWriteLogEntrySetSuccess) {
     EXPECT_TRUE(disk_manager->CreateDBFilesAndLoadDB().ok());
 
-    EXPECT_TRUE(log_manager->Init().ok());
-
     auto log_entry = log_manager->PrepareLogEntry(TEST_KEY_1, TEST_VALUE_1);
     EXPECT_TRUE(log_entry.ok());
     EXPECT_EQ(log_entry.value()->GetKey(), TEST_KEY_1);
@@ -44,8 +42,6 @@ TEST_F(LogManagerTest, PrepareAndWriteLogEntrySetSuccess) {
 
 TEST_F(LogManagerTest, PrepareAndWriteLogEntryDeleteSuccess) {
     EXPECT_TRUE(disk_manager->CreateDBFilesAndLoadDB().ok());
-
-    EXPECT_TRUE(log_manager->Init().ok());
 
     auto log_entry = log_manager->PrepareLogEntry(TEST_KEY_1, absl::nullopt);
     EXPECT_TRUE(log_entry.ok());

@@ -18,7 +18,7 @@ namespace graphchaindb {
 // disk and stores them in the cache. It also allocates new pages when
 // requested.
 //
-// TODO: Thread safety?
+// It is thread safe.
 //
 class BufferManager {
    public:
@@ -48,6 +48,12 @@ class BufferManager {
     // REQUIRES: mu_ to be held by the caller
     absl::StatusOr<int> findIndexToEvict(page_id_t new_page_id);
 
+    // Routine which is called periodically to flush the unpinned dirty pages to
+    // disk
+    //
+    // Acquires the exclusive lock
+    absl::Status flushToDisk();
+
     DiskManager* disk_manager_;
     LogManager* log_manager_;
     std::shared_mutex mu_;  // protects page_id_to_cache_index_ and
@@ -55,6 +61,7 @@ class BufferManager {
     page_id_t next_page_id_{STARTING_NORMAL_PAGE_ID};
     std::map<page_id_t, int> page_id_to_cache_index_;
     std::map<int, page_id_t> cache_index_to_page_id_;
+    int eviction_start_idx_ = 0;
     Page cache_[PAGE_BUFFER_SIZE];
 };
 

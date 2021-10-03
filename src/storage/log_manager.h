@@ -11,6 +11,7 @@
 #include "option.h"
 #include "src/common/config.h"
 #include "src/storage/log_entry.h"
+#include "src/storage/log_entry_iterator.h"
 
 namespace graphchaindb {
 
@@ -25,9 +26,10 @@ class LogManager {
 
     ~LogManager() = default;
 
-    // Init the log manager.
-    // MUST be called after creating/loading the db files in DiskManager.
-    absl::Status Init();
+    // Get the log entry iterator to iterate the log entries during recovery
+    std::unique_ptr<LogEntryIterator> GetLogEntryIterator() {
+        return std::make_unique<LogEntryIterator>(disk_manager_);
+    }
 
     // Prepare the log entry.
     // The operation is set if the optional value is present otherwise it is
@@ -38,6 +40,9 @@ class LogManager {
     // Write a log entry for the key value pair
     // TODO: might need to return the log number later
     absl::Status WriteLogEntry(std::unique_ptr<LogEntry>& log_entry);
+
+    // Set the next log number that will be used
+    void SetNextLogNumber(ln_t next_ln) { next_ln_ = next_ln; }
 
    private:
     DiskManager* disk_manager_;

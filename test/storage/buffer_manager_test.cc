@@ -33,10 +33,7 @@ class BufferManagerTest : public ::testing::Test {
             return s.status();
         }
 
-        auto s2 = log_manager->Init();
-        if (!s2.ok()) {
-            return s2;
-        }
+        log_manager->SetNextLogNumber(STARTING_LOG_NUMBER);
 
         return buffer_manager->Init(STARTING_NORMAL_PAGE_ID);
     }
@@ -46,14 +43,79 @@ class BufferManagerTest : public ::testing::Test {
     std::unique_ptr<BufferManager> buffer_manager;
 };
 
-TEST_F(BufferManagerTest, AllocatePageSuccess) {
+TEST_F(BufferManagerTest, AllocatePageWithoutEvictionSuccess) {
     EXPECT_TRUE(Init().ok());
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < PAGE_BUFFER_SIZE; i++) {
         auto page_status = buffer_manager->AllocateNewPage();
         EXPECT_TRUE(page_status.ok());
         EXPECT_EQ(page_status.value()->GetPageId(),
                   STARTING_NORMAL_PAGE_ID + i);
+    }
+}
+
+TEST_F(BufferManagerTest, AllocatePageWithTotalEvictionSuccess) {
+    EXPECT_TRUE(Init().ok());
+
+    Page* pages[PAGE_BUFFER_SIZE];
+
+    for (int i = 0; i < PAGE_BUFFER_SIZE; i++) {
+        auto page_status = buffer_manager->AllocateNewPage();
+        EXPECT_TRUE(page_status.ok());
+        EXPECT_EQ(page_status.value()->GetPageId(),
+                  STARTING_NORMAL_PAGE_ID + i);
+        pages[i] = page_status.value();
+    }
+
+    for (int i = 0; i < PAGE_BUFFER_SIZE; i++) {
+        buffer_manager->UnpinPage(pages[i], false);
+    }
+
+    // we should be able to allocate more now that we've unpinned all the
+    // existing ones
+    for (int i = 0; i < PAGE_BUFFER_SIZE; i++) {
+        auto page_status = buffer_manager->AllocateNewPage();
+        EXPECT_TRUE(page_status.ok());
+        EXPECT_EQ(page_status.value()->GetPageId(),
+                  STARTING_NORMAL_PAGE_ID + PAGE_BUFFER_SIZE + i);
+    }
+}
+
+TEST_F(BufferManagerTest, AllocatePageWithPartialEvictionSuccess) {
+    EXPECT_TRUE(Init().ok());
+
+    Page* pages[PAGE_BUFFER_SIZE];
+
+    for (int i = 0; i < PAGE_BUFFER_SIZE; i++) {
+        auto page_status = buffer_manager->AllocateNewPage();
+        EXPECT_TRUE(page_status.ok());
+        EXPECT_EQ(page_status.value()->GetPageId(),
+                  STARTING_NORMAL_PAGE_ID + i);
+        pages[i] = page_status.value();
+    }
+
+    for (int i = 0; i < 10; i++) {
+        buffer_manager->UnpinPage(pages[i], false);
+    }
+
+    // we should be able to allocate 10 more now that we've unpinned all the
+    // existing ones
+    for (int i = 0; i < 10; i++) {
+        auto page_status = buffer_manager->AllocateNewPage();
+        EXPECT_TRUE(page_status.ok());
+        EXPECT_EQ(page_status.value()->GetPageId(),
+                  STARTING_NORMAL_PAGE_ID + PAGE_BUFFER_SIZE + i);
+    }
+
+    for (int i = 20; i < 30; i++) {
+        buffer_manager->UnpinPage(pages[i], false);
+    }
+
+    // we should be able to allocate 10 more now that we've unpinned all the
+    // existing ones
+    for (int i = 0; i < 10; i++) {
+        auto page_status = buffer_manager->AllocateNewPage();
+        EXPECT_TRUE(page_status.ok());
     }
 }
 

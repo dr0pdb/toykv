@@ -87,9 +87,9 @@ absl::StatusOr<std::string> StorageImpl::Get(const ReadOptions& options,
 absl::Status StorageImpl::Recover(const Options& options) {
     LOG(INFO) << "StorageImpl::Recover: Start";
 
-    bool init_log_manager = true;
     absl::StatusOr<RootPage*> s = disk_manager_->LoadDB();
     RootPage* root_page = nullptr;
+    auto next_page_id = INVALID_PAGE_ID;
 
     if (s.ok()) {
         root_page = *s;
@@ -97,10 +97,6 @@ absl::Status StorageImpl::Recover(const Options& options) {
         if (options.error_if_exists) {
             LOG(ERROR) << "StorageImpl::Recover: database files already exist";
             return absl::AlreadyExistsError("Database files already exist");
-        } else {
-            // do the actual recovery
-
-            init_log_manager = false;
         }
     } else {
         // TODO: consider checking if the error is not found error
@@ -117,20 +113,16 @@ absl::Status StorageImpl::Recover(const Options& options) {
         }
     }
 
-    LOG(INFO) << "StorageImpl::Recover: Done creating/loading DB files. "
-                 "Reading log statements now";
+    LOG(INFO) << "StorageImpl::Recover: Done creating/loading DB files. ";
 
-    if (init_log_manager) {
-        s = log_manager_->Init();
-        if (!s.ok()) {
-            LOG(ERROR)
-                << "StorageImpl::Recover: error while initing the log manager";
-            return s.status();
-        }
+    CHECK_NE(next_page_id, INVALID_PAGE_ID);
+
+    auto buffer_init_status = buffer_manager_->Init(next_page_id);
+    if (!buffer_init_status.ok()) {
+        LOG(ERROR)
+            << "StorageImpl::Recover: error while initing the buffer manager";
+        return buffer_init_status;
     }
-
-    // TODO: call buffer manager init with the next page id. the next page id
-    // should be fetched from the log manager init method
 
     return s.status();
 }

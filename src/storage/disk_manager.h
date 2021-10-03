@@ -46,7 +46,12 @@ class DiskManager {
     // Write the contents of the given data buffer in the given page
     absl::Status WritePage(page_id_t page_id, char* data, bool flush = false);
 
+    // Get Log file size
+    int32_t GetLogFileSize();
+
    private:
+    int32_t GetFileSize(std::string file_name);
+
     std::string db_path_;
     std::fstream db_file_;
     std::fstream log_file_;

@@ -2,6 +2,9 @@
 
 #include <glog/logging.h>
 
+#include <future>
+#include <thread>
+
 namespace graphchaindb {
 
 BufferManager::BufferManager(DiskManager* disk_manager, LogManager* log_manager)
@@ -13,6 +16,9 @@ absl::Status BufferManager::Init(page_id_t next_page_id) {
               << next_page_id;
 
     next_page_id_ = next_page_id;
+
+    // start the background flush thread
+
     return absl::OkStatus();
 }
 
@@ -132,8 +138,32 @@ absl::StatusOr<int> BufferManager::findIndexToEvict(page_id_t new_page_id) {
             << "BufferManager::findIndexToEvict: programming "
                "error - expected index to be non-negative";
     } else {
-        // TODO: evict an existing page (pin count should be zero) and update
-        // existing_page_id
+        int eviction_end_idx =
+            (eviction_start_idx_ + PAGE_BUFFER_SIZE - 1) % PAGE_BUFFER_SIZE;
+
+        LOG(INFO) << "BufferManager::findIndexToEvict: starting eviction idx "
+                     "search from "
+                  << eviction_start_idx_;
+
+        for (; eviction_start_idx_ != eviction_end_idx;
+             eviction_start_idx_ =
+                 (eviction_start_idx_ + 1) % PAGE_BUFFER_SIZE) {
+            LOG(INFO)
+                << "BufferManager::findIndexToEvict: current eviction idx "
+                   "search from "
+                << eviction_start_idx_;
+
+            // it's not possible to increase the pin count concurrently while
+            // doing this since we hold the global lock. So this is thread safe
+            if (cache_[eviction_start_idx_].pin_count_ == 0) {
+                if (cache_[eviction_start_idx_].second_chance_) {
+                    cache_[eviction_start_idx_].second_chance_ = false;
+                    continue;
+                }
+
+                cache_index = eviction_start_idx_;
+            }
+        }
     }
 
     if (cache_index == -1) {
@@ -179,5 +209,11 @@ absl::StatusOr<int> BufferManager::findIndexToEvict(page_id_t new_page_id) {
 
     return cache_index;
 }
+
+// Routine which is called periodically to flush the unpinned dirty pages to
+// disk
+//
+// Acquires the exclusive lock
+absl::Status BufferManager::flushToDisk() {}
 
 }  // namespace graphchaindb

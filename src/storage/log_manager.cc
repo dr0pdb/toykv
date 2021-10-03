@@ -10,17 +10,6 @@ namespace graphchaindb {
 LogManager::LogManager(DiskManager* disk_manager)
     : disk_manager_{CHECK_NOTNULL(disk_manager)} {}
 
-absl::Status LogManager::Init() {
-    LOG(INFO) << "LogManager::Init: Start";
-
-    // TODO: Iterate the logs from the log file and init the next log number
-    next_ln_ = 0;
-
-    // TODO: Also record the next page id and return it.
-
-    return absl::OkStatus();
-}
-
 absl::StatusOr<std::unique_ptr<LogEntry>> LogManager::PrepareLogEntry(
     absl::string_view key, absl::optional<absl::string_view> value) {
     LOG(INFO) << "LogManager::PrepareLogEntry: Start";

@@ -84,6 +84,7 @@ class Page {
     page_id_t page_id_;
     std::shared_mutex mu_;
     int pin_count_ = 0;
+    bool second_chance_ = false;  // for clock eviction policy
     bool is_page_dirty_ = false;
     char data_[PAGE_SIZE] GUARDED_BY(mu_);
 };

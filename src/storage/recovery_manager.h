@@ -4,11 +4,13 @@
 #include "absl/status/status.h"
 #include "log_manager.h"
 #include "src/common/config.h"
+#include "src/storage/default_key_comparator.h"
 
 namespace graphchaindb {
 
 // RecoveryManager is responsible for recovery operations
-// todo: Thread safety?
+//
+// Not thread safe
 class RecoveryManager {
    public:
     explicit RecoveryManager(LogManager* log_manager);
@@ -16,13 +18,14 @@ class RecoveryManager {
     RecoveryManager(const RecoveryManager&) = delete;
     RecoveryManager& operator=(const RecoveryManager&) = delete;
 
-    ~RecoveryManager() = default;
+    ~RecoveryManager() { delete comp_; }
 
     // Run recovery procedure.
-    absl::Status Recover();
+    absl::StatusOr<page_id_t> Recover();
 
    private:
     LogManager* log_manager_;
+    KeyComparator* comp_;
 };
 
 }  // namespace graphchaindb

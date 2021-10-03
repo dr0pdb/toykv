@@ -7,7 +7,8 @@
 
 namespace graphchaindb {
 
-// LogEntryIterator is an iterator over log entry.
+// LogEntryIterator is an iterator over the log entries. It should only be used
+// when new entries aren't being added. For eg. during recovery.
 //
 // It is not thread safe.
 class LogEntryIterator : public Iterator<LogEntry> {
@@ -29,7 +30,9 @@ class LogEntryIterator : public Iterator<LogEntry> {
     // Call IsValid() to ensure that the iterator is valid after the seek.
     absl::Status SeekEqOrGreaterTo(LogEntry* item) override;
 
-    // Move the iterator to the next position.
+    // Move the iterator to the next position. The next position could be
+    // invalid, the caller must verify the validity by calling IsValid().
+    //
     // REQUIRES: current position of the iterator must be valid.
     absl::Status Next() override;
 
@@ -38,7 +41,8 @@ class LogEntryIterator : public Iterator<LogEntry> {
     absl::StatusOr<std::unique_ptr<LogEntry>> GetCurrent() override;
 
    private:
-    int offset_;
+    int offset_{0};
+    int total_size_{0};
     DiskManager* disk_manager_{nullptr};
 };
 

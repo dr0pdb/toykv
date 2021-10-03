@@ -30,6 +30,8 @@ using ln_t = int64_t;       // log number
 
 static constexpr ln_t INVALID_LOG_NUMBER =
     -1;  // indicates invalid log sequence number
+static constexpr ln_t STARTING_LOG_NUMBER =
+    0;  // indicates starting log sequence number
 
 static constexpr absl::string_view NEXT_PAGE_ID_KEY = "toykv-next-page-id";
 

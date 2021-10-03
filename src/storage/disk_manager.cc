@@ -1,6 +1,7 @@
 #include "disk_manager.h"
 
 #include <glog/logging.h>
+#include <sys/stat.h>
 
 #include <iostream>
 
@@ -203,6 +204,14 @@ absl::Status DiskManager::WritePage(page_id_t page_id, char* data, bool flush) {
     // TODO: what if page_id position is more than the file size?
 
     return absl::OkStatus();
+}
+
+int32_t DiskManager::GetLogFileSize() { return GetFileSize(db_path_ + ".log"); }
+
+int32_t DiskManager::GetFileSize(std::string file_name) {
+    struct stat stat_data;
+    int return_code = stat(file_name.c_str(), &stat_data);
+    return return_code == 0 ? static_cast<int32_t>(stat_data.st_size) : -1;
 }
 
 }  // namespace graphchaindb

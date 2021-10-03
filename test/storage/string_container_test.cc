@@ -36,14 +36,9 @@ class StringContainerTest : public ::testing::Test {
             return s.status();
         }
 
-        auto s2 = log_manager->Init();
+        auto s2 = buffer_manager->Init(STARTING_NORMAL_PAGE_ID);
         if (!s2.ok()) {
             return s2;
-        }
-
-        auto s3 = buffer_manager->Init(STARTING_NORMAL_PAGE_ID);
-        if (!s3.ok()) {
-            return s3;
         }
     }
 
