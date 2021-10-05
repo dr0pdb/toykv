@@ -2,7 +2,7 @@
 
 #include <glog/logging.h>
 
-#include <future>
+#include <chrono>
 #include <thread>
 
 namespace graphchaindb {
@@ -17,7 +17,8 @@ absl::Status BufferManager::Init(page_id_t next_page_id) {
 
     next_page_id_ = next_page_id;
 
-    // start the background flush thread
+    std::thread background_flusher(flushRoutine, this);
+    background_flusher.detach();
 
     return absl::OkStatus();
 }
@@ -52,9 +53,15 @@ absl::StatusOr<Page*> BufferManager::GetPageWithId(page_id_t page_id) {
     }
 
     int cache_index = index_or_status.value();
-    cache_[cache_index].AquireExclusiveLock();
-    cache_[cache_index].pin_count_++;
-    cache_[cache_index].ReleaseExclusiveLock();
+    auto page = &cache_[cache_index];
+    page->AquireExclusiveLock();
+
+    page->page_id_ = page_id;
+    disk_manager_->ReadPage(page_id, page->GetData());
+    page->pin_count_++;
+    page->is_page_dirty_ = false;
+
+    page->ReleaseExclusiveLock();
 
     return &cache_[cache_index];
 }
@@ -124,6 +131,7 @@ absl::StatusOr<int> BufferManager::findIndexToEvict(page_id_t new_page_id) {
 
     int cache_index = -1;
     page_id_t existing_page_id = INVALID_PAGE_ID;
+    bool eviction = false;
 
     if (cache_index_to_page_id_.size() < PAGE_BUFFER_SIZE) {
         for (int i = 0; i < PAGE_BUFFER_SIZE; i++) {
@@ -162,6 +170,7 @@ absl::StatusOr<int> BufferManager::findIndexToEvict(page_id_t new_page_id) {
                 }
 
                 cache_index = eviction_start_idx_;
+                eviction = true;
             }
         }
     }
@@ -178,7 +187,12 @@ absl::StatusOr<int> BufferManager::findIndexToEvict(page_id_t new_page_id) {
 
     Page* page = &cache_[cache_index];
     page->AquireExclusiveLock();
+    if (eviction) {
+        existing_page_id = page->GetPageId();
+    }
 
+    // this is safe to do because the flusher routine won't be flushing since
+    // we're holding an exclusive lock.
     if (page->GetPageDirty()) {
         CHECK_NE(existing_page_id, INVALID_PAGE_ID)
             << "BufferManager::findIndexToEvict: programming "
@@ -210,10 +224,60 @@ absl::StatusOr<int> BufferManager::findIndexToEvict(page_id_t new_page_id) {
     return cache_index;
 }
 
-// Routine which is called periodically to flush the unpinned dirty pages to
-// disk
-//
-// Acquires the exclusive lock
-absl::Status BufferManager::flushToDisk() {}
+void flushRoutine(BufferManager* buffer_manager) {
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(FLUSH_WAIT_INTERVAL_MILLISECONDS));
+
+    while (true) {
+        buffer_manager->flushToDisk();
+
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(FLUSH_WAIT_INTERVAL_MILLISECONDS));
+    }
+}
+
+void BufferManager::flushToDisk() {
+    LOG(INFO) << "BufferManager::flushToDisk: Start";
+    std::unique_lock l(mu_);
+    std::vector<int> to_flush;
+
+    // first check if we even need to flush any page
+    for (int i = 0; i < PAGE_BUFFER_SIZE; i++) {
+        auto page = &cache_[i];
+        page->AquireReadLock();
+
+        if (page->pin_count_ == 0 && page->is_page_dirty_) {
+            to_flush.push_back(i);
+        }
+
+        page->ReleaseReadLock();
+    }
+
+    LOG(INFO) << "BufferManager::flushToDisk: Number of pages to flush: "
+              << to_flush.size();
+
+    for (std::size_t i = 0; i < to_flush.size(); i++) {
+        int idx = to_flush[i];
+        auto page = &cache_[idx];
+        page->AquireExclusiveLock();
+
+        // in between the reading and writing, the pages pin count could have
+        // been updated.
+        if (page->pin_count_ == 0) {
+            auto flush_status =
+                disk_manager_->WritePage(page->GetPageId(), page->GetData(),
+                                         /* flush */ i + 1 == to_flush.size());
+            if (!flush_status.ok()) {
+                LOG(ERROR) << "BufferManager::flushToDisk: error while "
+                              "flushing the page "
+                           << page->GetPageId();
+                page->ReleaseExclusiveLock();
+                return;
+            }
+        }
+
+        page->ReleaseExclusiveLock();
+    }
+}
 
 }  // namespace graphchaindb

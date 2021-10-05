@@ -35,6 +35,8 @@ static constexpr ln_t STARTING_LOG_NUMBER =
 
 static constexpr absl::string_view NEXT_PAGE_ID_KEY = "toykv-next-page-id";
 
+static constexpr int FLUSH_WAIT_INTERVAL_MILLISECONDS = 500;
+
 }  // namespace graphchaindb
 
 #endif  // COMMON_CONFIG_H

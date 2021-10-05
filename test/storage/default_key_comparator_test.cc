@@ -7,7 +7,7 @@
 #include <random>
 
 #include "absl/strings/string_view.h"
-#include "src/common/test_values.h"
+#include "src/common/test_utils.h"
 
 namespace graphchaindb {
 

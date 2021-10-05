@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
-#include "src/common/test_values.h"
+#include "src/common/test_utils.h"
 #include "src/storage/log_entry.h"
 
 namespace graphchaindb {

@@ -12,6 +12,10 @@
 
 namespace graphchaindb {
 
+class BufferManager;
+
+void flushRoutine(BufferManager* buffer_manager);
+
 // BufferManager manages all of the pages in the storage.
 //
 // Maintains a cache of pages in memory. It retrieves the pages from
@@ -42,17 +46,17 @@ class BufferManager {
     // ASSUMES: Appropriate lock on the page is held by the caller
     void UnpinPage(Page* page, bool is_dirty = false);
 
+    // Routine which is called periodically to flush the unpinned dirty
+    // pages to disk
+    //
+    // Acquires the exclusive lock
+    void flushToDisk();
+
    private:
     // Find an empty slot in the cache or evict one of the pages
     // Also updates the search maps in case a slot was found
     // REQUIRES: mu_ to be held by the caller
     absl::StatusOr<int> findIndexToEvict(page_id_t new_page_id);
-
-    // Routine which is called periodically to flush the unpinned dirty pages to
-    // disk
-    //
-    // Acquires the exclusive lock
-    absl::Status flushToDisk();
 
     DiskManager* disk_manager_;
     LogManager* log_manager_;

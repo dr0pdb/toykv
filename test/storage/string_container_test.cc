@@ -8,7 +8,7 @@
 
 #include "absl/strings/string_view.h"
 #include "src/common/config.h"
-#include "src/common/test_values.h"
+#include "src/common/test_utils.h"
 #include "src/storage/buffer_manager.h"
 #include "src/storage/disk_manager.h"
 #include "src/storage/log_entry.h"
