@@ -32,8 +32,8 @@ class BplusTreeTest : public ::testing::Test {
         log_manager = std::make_unique<LogManager>(disk_manager.get());
         buffer_manager = std::make_unique<BufferManager>(disk_manager.get(),
                                                          log_manager.get());
-        bplus_tree = std::make_unique<BplusTree>(buffer_manager.get(),
-                                                 disk_manager.get());
+        bplus_tree = std::make_unique<BplusTree>(
+            buffer_manager.get(), disk_manager.get(), log_manager.get());
     }
 
     absl::Status Init() {

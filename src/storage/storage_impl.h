@@ -54,8 +54,8 @@ class StorageImpl : public Storage {
     DiskManager* disk_manager_;
     LogManager* log_manager_;
     BufferManager* buffer_manager_;
-    RecoveryManager* recovery_manager_;
     BplusTreeIndex* index_;
+    RecoveryManager* recovery_manager_;
 };
 
 }  // namespace graphchaindb

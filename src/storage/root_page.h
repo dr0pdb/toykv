@@ -31,8 +31,9 @@ class RootPage {
    private:
     PageType page_type_{PAGE_TYPE_ROOT};
     page_id_t page_id_{ROOT_PAGE_ID};
-    // root page of the bplus tree index.
-    page_id_t index_root_page_id{INVALID_PAGE_ID};
+    page_id_t index_root_page_id_{
+        INVALID_PAGE_ID};  // root page of the bplus tree index.
+    ln_t last_flushed_log_number_{INVALID_LOG_NUMBER};
 };
 
 }  // namespace graphchaindb

@@ -10,8 +10,8 @@ StorageImpl::StorageImpl(const Options& options, absl::string_view db_path)
     : disk_manager_(new DiskManager(db_path)),
       log_manager_(new LogManager(disk_manager_)),
       buffer_manager_(new BufferManager(disk_manager_, log_manager_)),
-      recovery_manager_(new RecoveryManager(log_manager_)),
-      index_(new BplusTreeIndex(buffer_manager_, disk_manager_)) {}
+      index_(new BplusTreeIndex(buffer_manager_, disk_manager_, log_manager_)),
+      recovery_manager_(new RecoveryManager(log_manager_, index_)) {}
 
 StorageImpl::~StorageImpl() {
     delete buffer_manager_;
@@ -90,6 +90,7 @@ absl::Status StorageImpl::Recover(const Options& options) {
     absl::StatusOr<RootPage*> s = disk_manager_->LoadDB();
     RootPage* root_page = nullptr;
     auto next_page_id = INVALID_PAGE_ID;
+    auto bplus_tree_index_root_page_id = INVALID_PAGE_ID;
 
     if (s.ok()) {
         root_page = *s;
@@ -115,6 +116,14 @@ absl::Status StorageImpl::Recover(const Options& options) {
 
     LOG(INFO) << "StorageImpl::Recover: Done creating/loading DB files. ";
 
+    auto recovery_status_or_next_page_id =
+        recovery_manager_->Recover(bplus_tree_index_root_page_id);
+    if (!recovery_status_or_next_page_id.ok()) {
+        LOG(ERROR) << "StorageImpl::Recover: error during recovery operation.";
+        return recovery_status_or_next_page_id.status();
+    }
+
+    next_page_id = recovery_status_or_next_page_id.value();
     CHECK_NE(next_page_id, INVALID_PAGE_ID);
 
     auto buffer_init_status = buffer_manager_->Init(next_page_id);
@@ -123,6 +132,8 @@ absl::Status StorageImpl::Recover(const Options& options) {
             << "StorageImpl::Recover: error while initing the buffer manager";
         return buffer_init_status;
     }
+
+    index_->Init(bplus_tree_index_root_page_id);
 
     return s.status();
 }

@@ -34,6 +34,8 @@ static constexpr ln_t STARTING_LOG_NUMBER =
     0;  // indicates starting log sequence number
 
 static constexpr absl::string_view NEXT_PAGE_ID_KEY = "toykv-next-page-id";
+static constexpr absl::string_view INDEX_ROOT_PAGE_ID_KEY =
+    "toykv-index-root-page-id";
 
 static constexpr int FLUSH_WAIT_INTERVAL_MILLISECONDS = 500;
 

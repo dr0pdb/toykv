@@ -12,6 +12,7 @@
 #include "disk_manager.h"
 #include "key_comparator.h"
 #include "src/common/config.h"
+#include "src/storage/log_manager.h"
 #include "src/storage/option.h"
 
 namespace graphchaindb {
@@ -22,9 +23,10 @@ namespace graphchaindb {
 // It is thread safe
 class BplusTree {
    public:
-    BplusTree(BufferManager* buffer_manager, DiskManager* disk_manager);
     BplusTree(BufferManager* buffer_manager, DiskManager* disk_manager,
-              KeyComparator* comp);
+              LogManager* log_manager);
+    BplusTree(BufferManager* buffer_manager, DiskManager* disk_manager,
+              LogManager* log_manager, KeyComparator* comp);
 
     BplusTree(const BplusTree&) = delete;
     BplusTree& operator=(const BplusTree&) = delete;
@@ -116,6 +118,7 @@ class BplusTree {
     KeyComparator* comp_;
     BufferManager* buffer_manager_;
     DiskManager* disk_manager_;
+    LogManager* log_manager_;
 
     std::shared_mutex mu_;
     page_id_t root_page_id_{INVALID_PAGE_ID};

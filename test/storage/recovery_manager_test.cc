@@ -8,6 +8,7 @@
 
 #include "absl/strings/string_view.h"
 #include "src/common/config.h"
+#include "src/storage/bplus_tree_index.h"
 #include "src/storage/buffer_manager.h"
 #include "src/storage/disk_manager.h"
 #include "src/storage/log_entry.h"
@@ -26,7 +27,10 @@ class RecoveryManagerTest : public ::testing::Test {
         log_manager = std::make_unique<LogManager>(disk_manager.get());
         buffer_manager = std::make_unique<BufferManager>(disk_manager.get(),
                                                          log_manager.get());
-        recovery_manager = std::make_unique<RecoveryManager>(log_manager.get());
+        index = std::make_unique<BplusTreeIndex>(
+            buffer_manager.get(), disk_manager.get(), log_manager.get());
+        recovery_manager =
+            std::make_unique<RecoveryManager>(log_manager.get(), index.get());
     }
 
     absl::Status Init() {
@@ -63,16 +67,20 @@ class RecoveryManagerTest : public ::testing::Test {
     std::unique_ptr<LogManager> log_manager;
     std::unique_ptr<BufferManager> buffer_manager;
     std::unique_ptr<RecoveryManager> recovery_manager;
+    std::unique_ptr<BplusTreeIndex> index;
 };
 
 TEST_F(RecoveryManagerTest, RecoverSuccess) {
     EXPECT_TRUE(Init().ok());
     EXPECT_TRUE(InsertDummyData().ok());
 
-    auto next_page_id_status = recovery_manager->Recover();
+    auto index_root_page_id = INVALID_PAGE_ID;
+    auto next_page_id_status = recovery_manager->Recover(index_root_page_id);
     EXPECT_TRUE(next_page_id_status.ok());
 
     EXPECT_EQ(next_page_id_status.value(), 12);
+
+    EXPECT_EQ(index_root_page_id, INVALID_PAGE_ID);
 }
 
 }  // namespace graphchaindb

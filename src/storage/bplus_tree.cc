@@ -14,15 +14,17 @@
 
 namespace graphchaindb {
 
-BplusTree::BplusTree(BufferManager* buffer_manager, DiskManager* disk_manager)
+BplusTree::BplusTree(BufferManager* buffer_manager, DiskManager* disk_manager,
+                     LogManager* log_manager)
     : BplusTree(CHECK_NOTNULL(buffer_manager), CHECK_NOTNULL(disk_manager),
-                new DefaultKeyComparator()) {}
+                CHECK_NOTNULL(log_manager), new DefaultKeyComparator()) {}
 
 BplusTree::BplusTree(BufferManager* buffer_manager, DiskManager* disk_manager,
-                     KeyComparator* comp)
+                     LogManager* log_manager, KeyComparator* comp)
     : comp_{CHECK_NOTNULL(comp)},
       buffer_manager_{CHECK_NOTNULL(buffer_manager)},
-      disk_manager_{CHECK_NOTNULL(disk_manager)} {}
+      disk_manager_{CHECK_NOTNULL(disk_manager)},
+      log_manager_{CHECK_NOTNULL(log_manager)} {}
 
 BplusTree::~BplusTree() { delete comp_; }
 
@@ -732,10 +734,24 @@ absl::Status BplusTree::UpdateRoot(page_id_t new_root_id) {
     LOG(INFO) << "BplusTree::UpdateRoot: updating root_page_id_ to "
               << new_root_id;
 
+    absl::StatusOr<std::unique_ptr<LogEntry>> sOrLogEntry =
+        log_manager_->PrepareLogEntry(INDEX_ROOT_PAGE_ID_KEY,
+                                      std::to_string(new_root_id));
+    if (!sOrLogEntry.ok() || *sOrLogEntry == nullptr) {
+        LOG(ERROR) << "BplusTree::UpdateRoot: unable to update the root of the "
+                      "bplus tree";
+        return sOrLogEntry.status();
+    }
+
+    absl::Status s = log_manager_->WriteLogEntry(*sOrLogEntry);
+    if (!s.ok()) {
+        LOG(ERROR) << "BplusTree::UpdateRoot: unable to write log for "
+                      "updating the root of the bplus tree";
+        return s;
+    }
+
     std::unique_lock l(mu_);
     root_page_id_ = new_root_id;
-
-    // TODO: add log entry
 
     return absl::OkStatus();
 }

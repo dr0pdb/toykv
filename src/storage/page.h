@@ -50,10 +50,6 @@ class Page {
     // Get the dirty page flag value
     inline bool GetPageDirty() { return is_page_dirty_; }
 
-    // Set the value of dirty flag
-    // TODO: Do we need this?
-    inline void SetPageDirty(bool new_value) { is_page_dirty_ = new_value; }
-
     // Aquire a read lock on the page
     inline void AquireReadLock() {
         LOG(INFO) << "Page::AquireReadLock: page_id " << page_id_;

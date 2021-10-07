@@ -7,18 +7,23 @@
 namespace graphchaindb {
 
 BplusTreeIndex::BplusTreeIndex(BufferManager* buffer_manager,
-                               DiskManager* disk_manager)
+                               DiskManager* disk_manager,
+                               LogManager* log_manager)
     : buffer_manager_{CHECK_NOTNULL(buffer_manager)},
-      disk_manager_{CHECK_NOTNULL(disk_manager)} {
-    bplus_tree_ = new BplusTree(buffer_manager_, disk_manager);
+      disk_manager_{CHECK_NOTNULL(disk_manager)},
+      log_manager_{CHECK_NOTNULL(log_manager)} {
+    bplus_tree_ = new BplusTree(buffer_manager_, disk_manager, log_manager);
 }
 
 BplusTreeIndex::BplusTreeIndex(BufferManager* buffer_manager,
-                               DiskManager* disk_manager, KeyComparator* comp)
+                               DiskManager* disk_manager,
+                               LogManager* log_manager, KeyComparator* comp)
     : buffer_manager_{CHECK_NOTNULL(buffer_manager)},
-      disk_manager_{CHECK_NOTNULL(disk_manager)} {
+      disk_manager_{CHECK_NOTNULL(disk_manager)},
+      log_manager_{CHECK_NOTNULL(log_manager)} {
     CHECK_NOTNULL(comp);
-    bplus_tree_ = new BplusTree(buffer_manager_, disk_manager, comp);
+    bplus_tree_ =
+        new BplusTree(buffer_manager_, disk_manager, log_manager, comp);
 }
 
 absl::Status BplusTreeIndex::Init(page_id_t root_page_id) {

@@ -7,6 +7,7 @@
 #include "bplus_tree.h"
 #include "buffer_manager.h"
 #include "disk_manager.h"
+#include "log_manager.h"
 #include "option.h"
 #include "src/common/config.h"
 
@@ -14,13 +15,14 @@ namespace graphchaindb {
 
 // A B+ tree based index storing variable length key-value pairs.
 //
-// TODO: Thread safety?
+// It is thread safe.
 //
 class BplusTreeIndex {
    public:
-    BplusTreeIndex(BufferManager* buffer_manager, DiskManager* disk_manager);
     BplusTreeIndex(BufferManager* buffer_manager, DiskManager* disk_manager,
-                   KeyComparator* comp);
+                   LogManager* log_manager);
+    BplusTreeIndex(BufferManager* buffer_manager, DiskManager* disk_manager,
+                   LogManager* log_manager, KeyComparator* comp);
 
     BplusTreeIndex(const BplusTreeIndex&) = delete;
     BplusTreeIndex& operator=(const BplusTreeIndex&) = delete;
@@ -45,6 +47,7 @@ class BplusTreeIndex {
    private:
     BufferManager* buffer_manager_;
     DiskManager* disk_manager_;
+    LogManager* log_manager_;
     BplusTree* bplus_tree_;
 };
 
