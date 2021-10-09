@@ -8,6 +8,7 @@
 
 #include "absl/strings/string_view.h"
 #include "src/common/config.h"
+#include "src/common/test_utils.h"
 #include "src/storage/bplus_tree_index.h"
 #include "src/storage/buffer_manager.h"
 #include "src/storage/disk_manager.h"
@@ -60,6 +61,18 @@ class RecoveryManagerTest : public ::testing::Test {
                 .value();
         log_manager->WriteLogEntry(entry3);
 
+        auto entry4 =
+            log_manager
+                ->PrepareLogEntry(INDEX_ROOT_PAGE_ID_KEY, std::to_string(1))
+                .value();
+        log_manager->WriteLogEntry(entry4);
+
+        auto entry5 =
+            log_manager
+                ->PrepareLogEntry(INDEX_ROOT_PAGE_ID_KEY, std::to_string(11))
+                .value();
+        log_manager->WriteLogEntry(entry5);
+
         return absl::OkStatus();
     }
 
@@ -80,7 +93,24 @@ TEST_F(RecoveryManagerTest, RecoverSuccess) {
 
     EXPECT_EQ(next_page_id_status.value(), 12);
 
-    EXPECT_EQ(index_root_page_id, INVALID_PAGE_ID);
+    EXPECT_EQ(index_root_page_id, 11);
+}
+
+TEST_F(RecoveryManagerTest, RecoverDeleteAfterSetSuccess) {
+    EXPECT_TRUE(Init().ok());
+    EXPECT_TRUE(InsertDummyData().ok());
+
+    auto set_entry =
+        log_manager->PrepareLogEntry(TEST_KEY_1, std::to_string(11)).value();
+    log_manager->WriteLogEntry(set_entry);
+
+    auto delete_entry =
+        log_manager->PrepareLogEntry(TEST_KEY_1, absl::nullopt).value();
+    log_manager->WriteLogEntry(delete_entry);
+
+    auto index_root_page_id = INVALID_PAGE_ID;
+    auto next_page_id_status = recovery_manager->Recover(index_root_page_id);
+    EXPECT_TRUE(next_page_id_status.ok());
 }
 
 }  // namespace graphchaindb

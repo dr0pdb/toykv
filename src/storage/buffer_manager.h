@@ -8,6 +8,7 @@
 #include "src/common/config.h"
 #include "src/storage/disk_manager.h"
 #include "src/storage/log_manager.h"
+#include "src/storage/overflow_page.h"
 #include "src/storage/page.h"
 
 namespace graphchaindb {
@@ -39,6 +40,9 @@ class BufferManager {
     // Get the page with the given id and pins it
     absl::StatusOr<Page*> GetPageWithId(page_id_t page_id);
 
+    // Get an overflow page which at least contains the given capacity.
+    absl::StatusOr<Page*> GetOverflowPageWithCapacity(int required_capacity);
+
     // Allocates a new page and pins it
     absl::StatusOr<Page*> AllocateNewPage();
 
@@ -66,6 +70,7 @@ class BufferManager {
     std::map<page_id_t, int> page_id_to_cache_index_;
     std::map<int, page_id_t> cache_index_to_page_id_;
     int eviction_start_idx_ = 0;
+    std::vector<page_id_t> overflow_pages_;
     Page cache_[PAGE_BUFFER_SIZE];
 };
 

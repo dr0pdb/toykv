@@ -66,6 +66,47 @@ absl::StatusOr<Page*> BufferManager::GetPageWithId(page_id_t page_id) {
     return &cache_[cache_index];
 }
 
+absl::StatusOr<Page*> BufferManager::GetOverflowPageWithCapacity(
+    int required_capacity) {
+    LOG(INFO) << "BufferManager::GetOverflowPageWithCapacity: Start with "
+                 "required_capacity: "
+              << required_capacity;
+
+    Page* result = nullptr;
+    for (auto page_id : overflow_pages_) {
+        auto page_status = GetPageWithId(page_id);
+        if (!page_status.ok()) {
+        }
+
+        auto page = page_status.value();
+        auto overflow_page = reinterpret_cast<OverflowPage*>(page->GetData());
+        if (overflow_page->RemainingCapacity() >= required_capacity) {
+            result = page;
+            break;
+        }
+
+        UnpinPage(page, false);
+    }
+
+    if (result == nullptr) {
+        auto page_status = AllocateNewPage();
+        if (!page_status.ok()) {
+        }
+
+        auto page = page_status.value();
+        auto overflow_page = reinterpret_cast<OverflowPage*>(page->GetData());
+        overflow_page->InitPage(page->GetPageId());
+        disk_manager_->WritePage(page->GetPageId(),
+                                 reinterpret_cast<char*>(overflow_page),
+                                 /* flush */ true);
+
+        overflow_pages_.emplace_back(page->GetPageId());
+        result = page;
+    }
+
+    return result;
+}
+
 absl::StatusOr<Page*> BufferManager::AllocateNewPage() {
     LOG(INFO) << "BufferManager::AllocateNewPage: Start";
 

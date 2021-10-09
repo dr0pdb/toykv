@@ -18,8 +18,7 @@ enum PageType {
     PAGE_TYPE_ROOT,
     PAGE_TYPE_BPLUS_INTERNAL,
     PAGE_TYPE_BPLUS_LEAF,
-    PAGE_TYPE_BPLUS_OVERFLOW,
-    PAGE_TYPE_STRING_OVERFLOW
+    PAGE_TYPE_OVERFLOW
 };
 
 // Page represent a single unit of storage in the database.
