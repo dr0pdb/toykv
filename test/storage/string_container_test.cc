@@ -40,6 +40,8 @@ class StringContainerTest : public ::testing::Test {
         if (!s2.ok()) {
             return s2;
         }
+
+        log_manager->SetNextLogNumber(1);
     }
 
     std::unique_ptr<DiskManager> disk_manager;
@@ -49,28 +51,44 @@ class StringContainerTest : public ::testing::Test {
 
 TEST_F(StringContainerTest, LessThan60StoreAndGetSuccess) {
     auto string_container = std::make_unique<StringContainer>();
+    Init();
 
-    string_container->SetStringData(TEST_VALUE_1);
+    string_container->SetStringData(buffer_manager.get(), TEST_VALUE_1);
 
     CHECK_EQ(string_container->GetStringLength(), TEST_VALUE_1.length());
-    CHECK_EQ(string_container->GetStringData(), TEST_VALUE_1);
+    CHECK_EQ(string_container->GetStringData(buffer_manager.get()),
+             TEST_VALUE_1);
+}
+
+TEST_F(StringContainerTest, GreaterThan60StoreAndGetSuccess) {
+    auto string_container = std::make_unique<StringContainer>();
+    Init();
+
+    string_container->SetStringData(buffer_manager.get(), TEST_VALUE_LONG);
+
+    CHECK_EQ(string_container->GetStringLength(), TEST_VALUE_LONG.length());
+    auto data = string_container->GetStringData(buffer_manager.get());
+    CHECK_EQ(data, TEST_VALUE_LONG);
 }
 
 TEST_F(StringContainerTest, LessThan60ClearAndSetAgainSuccess) {
     auto string_container = std::make_unique<StringContainer>();
+    Init();
 
-    string_container->SetStringData(TEST_VALUE_1);
+    string_container->SetStringData(buffer_manager.get(), TEST_VALUE_1);
 
     CHECK_EQ(string_container->GetStringLength(), TEST_VALUE_1.length());
-    CHECK_EQ(string_container->GetStringData(), TEST_VALUE_1);
+    CHECK_EQ(string_container->GetStringData(buffer_manager.get()),
+             TEST_VALUE_1);
 
     string_container->EraseStringData();
     CHECK_EQ(string_container->GetStringLength(), 0);
 
-    string_container->SetStringData(TEST_VALUE_2);
+    string_container->SetStringData(buffer_manager.get(), TEST_VALUE_2);
 
     CHECK_EQ(string_container->GetStringLength(), TEST_VALUE_2.length());
-    CHECK_EQ(string_container->GetStringData(), TEST_VALUE_2);
+    CHECK_EQ(string_container->GetStringData(buffer_manager.get()),
+             TEST_VALUE_2);
 }
 
 }  // namespace graphchaindb

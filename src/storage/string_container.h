@@ -2,12 +2,12 @@
 #define STORAGE_STRING_KEY_H
 
 #include "absl/strings/string_view.h"
+#include "overflow_page.h"
 #include "src/common/config.h"
 
 namespace graphchaindb {
 
-// TODO: Implement overflow page structure. Also think about who'll keep track
-// of overflow pages.
+class BufferManager;
 
 // A fixed length string container that handles extra length using overflow
 // pages.
@@ -40,26 +40,17 @@ class StringContainer {
     }
 
     // Get the string data stored in the container
-    inline absl::string_view GetStringData() {
-        // TODO: handle overflow page structure
-        return reinterpret_cast<char*>(data_ + sizeof(int32_t));
-    }
+    std::string GetStringData(BufferManager* buffer_manager);
 
     // Set the string data stored in the container
-    inline void SetStringData(absl::string_view value) {
-        auto len = value.length();
-        memcpy(data_, &len, sizeof(int32_t));
-
-        if (len <= 60) {
-            memcpy(data_ + sizeof(int32_t), value.begin(), value.length());
-        } else {
-            // TODO: implement overflow handling
-        }
-    }
+    void SetStringData(BufferManager* buffer_manager, absl::string_view value);
 
     inline void EraseStringData() { memset(data_, 0, sizeof(int32_t)); }
 
    private:
+    static constexpr int OVERFLOW_PAGE_ID_SLOT = 56;
+    static constexpr int OVERFLOW_PAGE_OFFSET = 60;
+
     char data_[STRING_CONTAINER_SIZE];
 };
 

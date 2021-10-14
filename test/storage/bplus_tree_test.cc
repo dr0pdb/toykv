@@ -216,8 +216,8 @@ TEST_F(BplusTreeTest, SplitChildLeafSucceeds) {
         std::string key = "dummy_key_" + std::to_string(idx);
         std::string value = "dummy_value_" + std::to_string(idx);
 
-        child_page->data_[idx].key.SetStringData(key);
-        child_page->data_[idx].value.SetStringData(value);
+        child_page->data_[idx].key.SetStringData(buffer_manager.get(), key);
+        child_page->data_[idx].value.SetStringData(buffer_manager.get(), value);
     }
 
     uint32_t split_index = 0;
@@ -231,8 +231,9 @@ TEST_F(BplusTreeTest, SplitChildLeafSucceeds) {
     EXPECT_EQ(parent_page->GetCount(), 1);
     EXPECT_EQ(child_page->GetCount(), BPLUS_LEAF_KEY_VALUE_SIZE / 2);
 
-    EXPECT_EQ(parent_page->keys_[split_index].GetStringData(),
-              child_page->data_[median_idx].key.GetStringData());
+    EXPECT_EQ(
+        parent_page->keys_[split_index].GetStringData(buffer_manager.get()),
+        child_page->data_[median_idx].key.GetStringData(buffer_manager.get()));
     EXPECT_EQ(parent_page->children_[split_index],
               child_page->GetPageId());  // verification that it doesn't
                                          // overwrite this accidently
@@ -246,13 +247,15 @@ TEST_F(BplusTreeTest, SplitChildLeafSucceeds) {
 
     for (int idx = BPLUS_LEAF_KEY_VALUE_SIZE / 2;
          idx < BPLUS_LEAF_KEY_VALUE_SIZE; idx++) {
-        EXPECT_EQ(child_page->data_[idx].key.GetStringData(),
-                  second_child_page->data_[idx - BPLUS_LEAF_KEY_VALUE_SIZE / 2]
-                      .key.GetStringData());
+        EXPECT_EQ(
+            child_page->data_[idx].key.GetStringData(buffer_manager.get()),
+            second_child_page->data_[idx - BPLUS_LEAF_KEY_VALUE_SIZE / 2]
+                .key.GetStringData(buffer_manager.get()));
 
-        EXPECT_EQ(child_page->data_[idx].value.GetStringData(),
-                  second_child_page->data_[idx - BPLUS_LEAF_KEY_VALUE_SIZE / 2]
-                      .value.GetStringData());
+        EXPECT_EQ(
+            child_page->data_[idx].value.GetStringData(buffer_manager.get()),
+            second_child_page->data_[idx - BPLUS_LEAF_KEY_VALUE_SIZE / 2]
+                .value.GetStringData(buffer_manager.get()));
     }
 
     EXPECT_EQ(child_page->GetParentPageId(), parent_page->GetPageId());

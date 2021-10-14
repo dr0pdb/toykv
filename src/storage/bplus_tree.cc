@@ -170,7 +170,8 @@ absl::Status BplusTree::InsertNonFull(absl::string_view key,
         bool duplicate = false;
         while (insert_index < leaf_page->count_) {
             int comp = comp_->Compare(
-                key, leaf_page->data_[insert_index].key.GetStringData());
+                key, leaf_page->data_[insert_index].key.GetStringData(
+                         buffer_manager_));
             if (comp == 0) {
                 duplicate = true;
                 break;
@@ -191,8 +192,9 @@ absl::Status BplusTree::InsertNonFull(absl::string_view key,
         LOG(INFO) << "BplusTree::InsertNonFull: inserting at index: "
                   << insert_index;
 
-        leaf_page->data_[insert_index].key.SetStringData(key);
-        leaf_page->data_[insert_index].value.SetStringData(value);
+        leaf_page->data_[insert_index].key.SetStringData(buffer_manager_, key);
+        leaf_page->data_[insert_index].value.SetStringData(buffer_manager_,
+                                                           value);
 
         if (!duplicate) {
             leaf_page->count_++;
@@ -206,8 +208,9 @@ absl::Status BplusTree::InsertNonFull(absl::string_view key,
 
         int32_t insert_index = 0;
         for (; insert_index < internal_page->count_ &&
-               comp_->Compare(
-                   key, internal_page->keys_[insert_index].GetStringData()) > 0;
+               comp_->Compare(key,
+                              internal_page->keys_[insert_index].GetStringData(
+                                  buffer_manager_)) > 0;
              insert_index++) {
         }
 
@@ -239,9 +242,9 @@ absl::Status BplusTree::InsertNonFull(absl::string_view key,
                 return split_status.status();
             }
 
-            if (comp_->Compare(
-                    key, internal_page->keys_[insert_index].GetStringData()) >
-                0) {
+            if (comp_->Compare(key,
+                               internal_page->keys_[insert_index].GetStringData(
+                                   buffer_manager_)) > 0) {
                 insert_index++;
 
                 buffer_manager_->UnpinPage(child_page_container,
@@ -490,7 +493,8 @@ absl::Status BplusTree::DeleteFromPage(absl::string_view key,
         bool exists = false;
         while (deletion_index < leaf_page->count_) {
             int comp = comp_->Compare(
-                key, leaf_page->data_[deletion_index].key.GetStringData());
+                key, leaf_page->data_[deletion_index].key.GetStringData(
+                         buffer_manager_));
             if (comp == 0) {
                 exists = true;
                 break;
@@ -521,10 +525,10 @@ absl::Status BplusTree::DeleteFromPage(absl::string_view key,
             reinterpret_cast<BplusTreeInternalPage*>(page_container->GetData());
 
         int32_t deletion_index = 0;
-        for (;
-             deletion_index < internal_page->count_ &&
-             comp_->Compare(
-                 key, internal_page->keys_[deletion_index].GetStringData()) > 0;
+        for (; deletion_index < internal_page->count_ &&
+               comp_->Compare(
+                   key, internal_page->keys_[deletion_index].GetStringData(
+                            buffer_manager_)) > 0;
              deletion_index++) {
         }
 
@@ -683,14 +687,16 @@ absl::StatusOr<absl::string_view> BplusTree::GetFromPage(absl::string_view key,
         for (auto idx = 0; idx < leaf_page->count_; idx++) {
             LOG(INFO) << "BplusTree::GetFromPage: query key: " << key
                       << ". stored key: "
-                      << leaf_page->data_[idx].key.GetStringData();
+                      << leaf_page->data_[idx].key.GetStringData(
+                             buffer_manager_);
 
-            if (comp_->Compare(
-                    key, leaf_page->data_[idx].key.GetStringData()) == 0) {
+            if (comp_->Compare(key, leaf_page->data_[idx].key.GetStringData(
+                                        buffer_manager_)) == 0) {
                 LOG(INFO) << "BplusTree::GetFromPage: Found the value";
 
                 page_container->ReleaseReadLock();
-                return leaf_page->data_[idx].value.GetStringData();
+                return leaf_page->data_[idx].value.GetStringData(
+                    buffer_manager_);
             }
         }
 
@@ -702,7 +708,8 @@ absl::StatusOr<absl::string_view> BplusTree::GetFromPage(absl::string_view key,
         reinterpret_cast<BplusTreeInternalPage*>(page_container->GetData());
     auto idx = 0;
     while (idx < internal_page->count_ &&
-           comp_->Compare(key, internal_page->keys_[idx].GetStringData()) > 0) {
+           comp_->Compare(key, internal_page->keys_[idx].GetStringData(
+                                   buffer_manager_)) > 0) {
         idx++;
     }
 
@@ -776,10 +783,12 @@ void BplusTree::PrintNode(page_id_t page_id, std::string indentation) {
 
         std::cout << indentation;
         for (int32_t idx = 0; idx < leaf_page->count_; idx++) {
-            std::cout << "key: " << leaf_page->data_[idx].key.GetStringData()
-                      << " value: "
-                      << leaf_page->data_[idx].value.GetStringData()
-                      << " ------ ";
+            std::cout
+                << "key: "
+                << leaf_page->data_[idx].key.GetStringData(buffer_manager_)
+                << " value: "
+                << leaf_page->data_[idx].value.GetStringData(buffer_manager_)
+                << " ------ ";
         }
         std::cout << std::endl;
     } else {
@@ -796,7 +805,9 @@ void BplusTree::PrintNode(page_id_t page_id, std::string indentation) {
         for (int32_t idx = 0; idx < internal_page->count_; idx++) {
             std::cout << new_indentation
                       << "page_id: " << internal_page->children_[idx]
-                      << " key: " << internal_page->keys_[idx].GetStringData()
+                      << " key: "
+                      << internal_page->keys_[idx].GetStringData(
+                             buffer_manager_)
                       << std::endl;
 
             PrintNode(internal_page->children_[idx], new_indentation);

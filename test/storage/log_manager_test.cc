@@ -25,12 +25,15 @@ class LogManagerTest : public ::testing::Test {
         log_manager = std::make_unique<LogManager>(disk_manager.get());
     }
 
+    void Init() { log_manager->SetNextLogNumber(1); }
+
     std::unique_ptr<DiskManager> disk_manager;
     std::unique_ptr<LogManager> log_manager;
 };
 
 TEST_F(LogManagerTest, PrepareAndWriteLogEntrySetSuccess) {
     EXPECT_TRUE(disk_manager->CreateDBFilesAndLoadDB().ok());
+    Init();
 
     auto log_entry = log_manager->PrepareLogEntry(TEST_KEY_1, TEST_VALUE_1);
     EXPECT_TRUE(log_entry.ok());
@@ -42,6 +45,7 @@ TEST_F(LogManagerTest, PrepareAndWriteLogEntrySetSuccess) {
 
 TEST_F(LogManagerTest, PrepareAndWriteLogEntryDeleteSuccess) {
     EXPECT_TRUE(disk_manager->CreateDBFilesAndLoadDB().ok());
+    Init();
 
     auto log_entry = log_manager->PrepareLogEntry(TEST_KEY_1, absl::nullopt);
     EXPECT_TRUE(log_entry.ok());

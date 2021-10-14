@@ -40,7 +40,9 @@ class BufferManager {
     // Get the page with the given id and pins it
     absl::StatusOr<Page*> GetPageWithId(page_id_t page_id);
 
-    // Get an overflow page which at least contains the given capacity.
+    // Get an overflow page which at least contains the given capacity. The
+    // capacity only includes the length of the string. It shouldn't include the
+    // space required for storing the length itself.
     absl::StatusOr<Page*> GetOverflowPageWithCapacity(int required_capacity);
 
     // Allocates a new page and pins it

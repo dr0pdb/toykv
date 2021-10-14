@@ -80,7 +80,7 @@ absl::StatusOr<Page*> BufferManager::GetOverflowPageWithCapacity(
 
         auto page = page_status.value();
         auto overflow_page = reinterpret_cast<OverflowPage*>(page->GetData());
-        if (overflow_page->RemainingCapacity() >= required_capacity) {
+        if (overflow_page->RemainingCapacity() >= required_capacity + 4) {
             result = page;
             break;
         }

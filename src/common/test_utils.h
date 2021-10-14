@@ -13,6 +13,9 @@ static constexpr absl::string_view TEST_KEY_1 = "test_key_1";
 static constexpr absl::string_view TEST_KEY_2 = "test_key_2";
 static constexpr absl::string_view TEST_VALUE_1 = "test_value_1";
 static constexpr absl::string_view TEST_VALUE_2 = "test_value_2";
+static constexpr absl::string_view TEST_VALUE_LONG =
+    "test_value_long_"
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
 static std::string generate_random_string_size(int size) {
     const std::string VALID_CHARS =

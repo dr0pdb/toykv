@@ -5,7 +5,6 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
-#include "bplus_tree_page.h"
 #include "page.h"
 #include "src/common/config.h"
 
@@ -39,8 +38,12 @@ class OverflowPage {
         page_type_ = PageType::PAGE_TYPE_OVERFLOW;
     }
 
+    // the next slot to insert new data in.
+    // REQUIRES: exclusive lock is held on the page container.
+    inline int32_t NextSlot() { return space_used; }
+
     // remaining capacity in the overflow page
-    inline int RemainingCapacity() { return PAGE_SIZE - space_used; }
+    inline int32_t RemainingCapacity() { return PAGE_SIZE - space_used; }
 
     // get string at the given offset. The offset starts from the
     // data_ entry and doesn't include the header.
