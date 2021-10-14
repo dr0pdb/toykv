@@ -1,6 +1,8 @@
 #ifndef STORAGE_BPLUS_TREE_INDEX_H
 #define STORAGE_BPLUS_TREE_INDEX_H
 
+#include <gmock/gmock.h>
+
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -49,6 +51,18 @@ class BplusTreeIndex {
     DiskManager* disk_manager_;
     LogManager* log_manager_;
     BplusTree* bplus_tree_;
+};
+
+class MockBplusTreeIndex : public BplusTreeIndex {
+   public:
+    MOCK_METHOD1(Init, absl::Status(page_id_t root_page_id));
+    MOCK_METHOD3(Set,
+                 absl::Status(const WriteOptions& options,
+                              absl::string_view key, absl::string_view value));
+    MOCK_METHOD2(Delete, absl::Status(const WriteOptions& options,
+                                      absl::string_view key));
+    MOCK_METHOD2(Get, absl::StatusOr<std::string>(const ReadOptions& options,
+                                                  absl::string_view key));
 };
 
 }  // namespace graphchaindb
